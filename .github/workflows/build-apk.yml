@@ -1,23 +1,16 @@
-name: Build GuzikApp APK
+name: Move File and Build GuzikApp APK
 on:
   push:
     branches: [ main ]
   workflow_dispatch:
 
 jobs:
-  build:
+  move-and-build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
-          java-version: '17'
-
-      - uses: gradle/actions/setup-gradle@v3
-        with:
-          gradle-version: '8.5'
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Inject AndroidX and Gradle Configurations
         run: |
@@ -25,10 +18,47 @@ jobs:
           echo "android.enableJetifier=true" >> gradle.properties
           echo "org.gradle.jvmargs=-Xmx3072m -XX:MaxMetaspaceSize=512m" >> gradle.properties
 
-      - name: Copy HTML to assets
+      - name: Move HTML to Assets folder inside Cloud
         run: |
-          mkdir -p app/src/main/assets
-          cp app2.html app/src/main/assets/app2.html
+          # 1. Create the assets directory structure natively
+          mkdir -p app/src/main/assets/
+          
+          # 2. Check if the file is in the root, and move it
+          if [ -f "app2.html" ]; then
+            mv app2.html app/src/main/assets/app2.html
+            echo "File successfully moved inside the builder environment!"
+          else
+            echo "File already exists in assets folder, skipping move."
+          fi
+
+      - name: Push the Moved File Permanently back to Repo
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@://github.com"
+          
+          # Stage the deletion from root and addition to assets
+          git add app/src/main/assets/app2.html
+          if git ls-files --error-unmatch app2.html >/dev/null 2>&1; then
+            git rm app2.html
+          fi
+          
+          # Commit and push back to your main branch automatically
+          if ! git diff --cached --quiet; then
+            git commit -m "Move app2.html to assets folder via GitHub Actions Cloud"
+            git push origin main
+          else
+            echo "No directory structural changes detected."
+          fi
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.5'
 
       - name: Build APK
         run: gradle assembleDebug -Pandroid.useAndroidX=true --stacktrace
