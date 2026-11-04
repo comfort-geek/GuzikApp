@@ -12,16 +12,14 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
-      - uses: android-actions/setup-android@v3
-      - uses: gradle/actions/setup-gradle@v3
-        with:
-          gradle-version: '8.5'
       - name: Copy HTML to assets
         run: |
           mkdir -p app/src/main/assets
           cp app2.html app/src/main/assets/app2.html
       - name: Build APK
-        run: gradle assembleDebug --stacktrace
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --stacktrace
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
