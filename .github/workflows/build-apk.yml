@@ -31,7 +31,7 @@ jobs:
           mkdir -p app/src/main/
           mkdir -p app/src/main/java/com/guzik/app/
 
-          # 2. Write the AndroidManifest.xml configuration file
+          # 2. Write the corrected AndroidManifest.xml configuration file
           cat << 'EOF' > app/src/main/AndroidManifest.xml
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://android.com"
@@ -42,7 +42,7 @@ jobs:
                   android:label="GuzikApp"
                   android:theme="@style/Theme.AppCompat.Light.NoActionBar">
                   <activity 
-                      android:name=".MainActivity"
+                      android:name="com.guzik.app.MainActivity"
                       android:exported="true">
                       <intent-filter>
                           <action android:name="android.intent.action.MAIN" />
@@ -75,7 +75,7 @@ jobs:
                   ws.setJavaScriptEnabled(true);
                   ws.setDomStorageEnabled(true);
                   
-                  // Security overrides required to load large local files without crashing
+                  # Security overrides required to load large local files without crashing
                   ws.setAllowFileAccess(true);
                   ws.setAllowContentAccess(true);
                   ws.setAllowFileAccessFromFileURLs(true);
@@ -91,7 +91,7 @@ jobs:
         run: |
           mkdir -p app/src/main/assets/
           cp app2.html app/src/main/assets/app2.html
-          echo "Copied heavy 32MB resource directly to internal builder asset location."
+          echo "Copied heavy resource directly to internal builder asset location."
 
       - name: Build APK
         run: gradle assembleDebug -Pandroid.useAndroidX=true --stacktrace
