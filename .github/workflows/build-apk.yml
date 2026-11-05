@@ -54,7 +54,7 @@ jobs:
           }
           EOF
 
-          # 3. Write a validated AndroidManifest.xml using official production schema namespaces
+          # 3. Write a validated AndroidManifest.xml using official schema namespaces
           cat << 'EOF' > app/src/main/AndroidManifest.xml
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://android.com">
