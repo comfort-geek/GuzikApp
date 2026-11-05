@@ -30,6 +30,8 @@ jobs:
 
           java-version: '17'
 
+          cache: ''
+
  
 
       - uses: gradle/actions/setup-gradle@v3
@@ -58,9 +60,11 @@ jobs:
 
         run: |
 
-          # 1. Create directory paths
+          mkdir -p app/src/main/java/com/guzik/app/
 
-          mkdir -p app/src/main/java/com/guzik/app
+          mkdir -p app/src/main/assets/bible
+
+          mkdir -p app/src/main/assets/commentary
 
           mkdir -p app/src/main/res/mipmap-mdpi
 
@@ -72,57 +76,15 @@ jobs:
 
           mkdir -p app/src/main/res/mipmap-xxxhdpi
 
-          mkdir -p app/src/main/res/values
-
-          mkdir -p app/src/main/assets/bible
-
-          mkdir -p app/src/main/assets/commentary
-
-          mkdir -p app/src/main/assets/notes
-
-          mkdir -p app/src/main/assets/highlights
-
-          mkdir -p app/src/main/assets/audio
-
-          mkdir -p app/src/main/assets/downloads
-
  
 
-          # 2. Root build.gradle - FIXED
+          cat << 'EOF' > app/build.gradle
 
-          cat > build.gradle << 'EOF'
+          plugins {
 
-          buildscript {
-
-              repositories { google(); mavenCentral() }
-
-              dependencies { classpath 'com.android.tools.build:gradle:8.2.2' }
+              id 'com.android.application'
 
           }
-
-          allprojects {
-
-              repositories { google(); mavenCentral() }
-
-          }
-
-          EOF
-
- 
-
-          cat > settings.gradle << 'EOF'
-
-          include ':app'
-
-          EOF
-
- 
-
-          # 3. App build.gradle - EW Study Bible
-
-          cat > app/build.gradle << 'EOF'
-
-          apply plugin: 'com.android.application'
 
           android {
 
@@ -132,7 +94,7 @@ jobs:
 
               defaultConfig {
 
-                  applicationId 'com.guzik.app'
+                  applicationId "com.guzik.app"
 
                   minSdk 24
 
@@ -140,7 +102,7 @@ jobs:
 
                   versionCode 2
 
-                  versionName '2.0'
+                  versionName "2.0"
 
               }
 
@@ -178,9 +140,7 @@ jobs:
 
  
 
-          # 4. AndroidManifest
-
-          cat > app/src/main/AndroidManifest.xml << 'EOF'
+          cat << 'EOF' > app/src/main/AndroidManifest.xml
 
           <?xml version="1.0" encoding="utf-8"?>
 
@@ -190,17 +150,7 @@ jobs:
 
               <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
-              <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-
-              <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-
               <application
-
-                  android:label="EW Study Bible"
-
-                  android:icon="@mipmap/ic_launcher"
-
-                  android:roundIcon="@mipmap/ic_launcher"
 
                   android:allowBackup="true"
 
@@ -208,11 +158,19 @@ jobs:
 
                   android:largeHeap="true"
 
+                  android:label="EW Study Bible"
+
+                  android:icon="@mipmap/ic_launcher"
+
+                  android:roundIcon="@mipmap/ic_launcher"
+
+                  android:theme="@android:style/Theme.DeviceDefault.NoActionBar"
+
                   android:usesCleartextTraffic="true">
 
                   <activity
 
-                      android:name=".MainActivity"
+                      android:name="com.guzik.app.MainActivity"
 
                       android:exported="true"
 
@@ -236,9 +194,7 @@ jobs:
 
  
 
-          # 5. MainActivity - FASTER LOADING + AUTO FOLDERS
-
-          cat > app/src/main/java/com/guzik/app/MainActivity.java << 'EOF'
+          cat << 'EOF' > app/src/main/java/com/guzik/app/MainActivity.java
 
           package com.guzik.app;
 
@@ -288,13 +244,15 @@ jobs:
 
                   s.setAllowContentAccess(true);
 
+                  s.setAllowFileAccessFromFileURLs(true);
+
+                  s.setAllowUniversalAccessFromFileURLs(true);
+
                   s.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
 
                   s.setLoadsImagesAutomatically(true);
 
                   s.setRenderPriority(WebSettings.RenderPriority.HIGH);
-
-                  s.setEnableSmoothTransition(true);
 
                   webView.setLayerType(android.view.View.LAYER_TYPE_HARDWARE, null);
 
@@ -338,97 +296,59 @@ jobs:
 
  
 
-          # 6. Values
-
-          cat > app/src/main/res/values/themes.xml << 'EOF'
-
-          <resources>
-
-              <style name="Theme.EWStudyBible" parent="Theme.AppCompat.Light.NoActionBar">
-
-                  <item name="android:windowBackground">#0B1D4A</item>
-
-              </style>
-
-          </resources>
-
-          EOF
-
- 
-
-      - name: Copy Assets and Icon
+      - name: Create Assets and Icon
 
         run: |
+
+          mkdir -p app/src/main/assets/
 
           if [ -f "app2.html" ]; then
 
             cp app2.html app/src/main/assets/app2.html
 
-            echo "Copied app2.html"
-
           else
 
-            echo "::warning::app2.html not found in root, creating placeholder"
-
-            echo "<html><body><h1>EW Study Bible - app2.html missing</h1></body></html>" > app/src/main/assets/app2.html
+            echo "<html><body><h1>EW Study Bible</h1><p>app2.html missing - add file to repo root</p></body></html>" > app/src/main/assets/app2.html
 
           fi
 
  
 
-          # Icon handling - FIXED with fi
+          # Icon - if you have icon.png or icon.jpg in repo root, use it, else create placeholder so build doesn't fail
 
           if [ -f "icon.png" ]; then
 
-            echo "Found icon.png"
+            echo "Using icon.png"
 
-            cp icon.png app/src/main/res/mipmap-mdpi/ic_launcher.png
-
-            cp icon.png app/src/main/res/mipmap-hdpi/ic_launcher.png
-
-            cp icon.png app/src/main/res/mipmap-xhdpi/ic_launcher.png
-
-            cp icon.png app/src/main/res/mipmap-xxhdpi/ic_launcher.png
-
-            cp icon.png app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+            for d in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do cp icon.png app/src/main/res/$d/ic_launcher.png; done
 
           elif [ -f "icon.jpg" ]; then
 
-            echo "Found icon.jpg"
+            echo "Using icon.jpg"
 
-            cp icon.jpg app/src/main/res/mipmap-mdpi/ic_launcher.png
-
-            cp icon.jpg app/src/main/res/mipmap-hdpi/ic_launcher.png
-
-            cp icon.jpg app/src/main/res/mipmap-xhdpi/ic_launcher.png
-
-            cp icon.jpg app/src/main/res/mipmap-xxhdpi/ic_launcher.png
-
-            cp icon.jpg app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+            for d in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do cp icon.jpg app/src/main/res/$d/ic_launcher.png; done
 
           else
 
-            echo "No icon found, using default Android icon"
+            echo "No custom icon - creating placeholder icon so manifest parsing doesn't fail"
 
-            # Create a simple placeholder so build doesn't fail
+            # Create a 1x1 transparent png placeholder for each density using base64
 
-            mkdir -p /tmp/icon
+            for d in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
 
-            echo "No custom icon" > /tmp/icon/placeholder.txt
+              echo "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=" | base64 -d > app/src/main/res/$d/ic_launcher.png
+
+            done
 
           fi
+
+          ls -R app/src/main/res/
 
  
 
       - name: Build APK
 
-        run: |
-
-          gradle assembleDebug --stacktrace
-
-          ls -lh app/build/outputs/apk/debug/
-
-          cp app/build/outputs/apk/debug/app-debug.apk EW-Study-Bible.apk
+        run: gradle :app:assembleDebug -Pandroid.useAndroidX=true --stacktrace
 
  
 
@@ -440,4 +360,4 @@ jobs:
 
           name: EW-Study-Bible-APK
 
-          path: EW-Study-Bible.apk
+          path: app/build/outputs/apk/debug/app-debug.apk
