@@ -39,7 +39,7 @@ jobs:
           mkdir -p app/src/main/res/mipmap-xxhdpi
           mkdir -p app/src/main/res/mipmap-xxxhdpi
 
-          # 2. Generate module-level build.gradle file matching working architecture
+          # 2. Generate module-level build.gradle file with SourceSet resource mapping
           cat << 'EOF' > app/build.gradle
           plugins {
               id 'com.android.application'
@@ -54,7 +54,6 @@ jobs:
                   versionCode 2
                   versionName "2.0"
               }
-              // Tells the build system explicitly where to look for your app icons
               sourceSets {
                   main {
                       res.srcDirs = ['src/main/res']
@@ -63,11 +62,27 @@ jobs:
           }
           EOF
 
-          # 3. Write a validated AndroidManifest.xml matching your base template structure
-          echo "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4KPG1hbmlmZXN0IHhtbG5zOmFuZHJvaWQ9Imh0dHA6Ly9zY2hlbWFzLmFuZHJvaWQuY29tL2Fway9yZXMvYW5kcm9pZCI+CiAgICA8YXBwbGljYXRpb24KICAgICAgICBhbmRyb2lkOmFsbG93QmFja3VwPSJ0cnVlIgogICAgICAgIGFuZHJvaWQ6aGFyZHdhcmVBY2NlbGVyYXRlZD0idHJ1ZSIKICAgICAgICBhbmRyb2lkOmxhYmVsPSJFVyBTdHVkeSBCaWJsZSIKICAgICAgICBhbmRyb2lkOmljb249IkBtaXBtYXAvaWNfbGF1bmNoZXIiCiAgICAgICAgYW5kcm9pZDp0aGVtZT0iQHZhbHVlIj4KICAgICAgICA8YWN0aXZpdHkgCiAgICAgICAgICAgIGFuZHJvaWQ6bmFtZT0iY29tLmd1emlrLmFwcC5NYWluQWN0aXZpdHkiCiAgICAgICAgICAgIGFuZHJvaWQ6ZXhwb3J0ZWQ9InRydWUiPgogICAgICAgICAgICA8aW50ZW50LWZpbHRlcj4KICAgICAgICAgICAgICAgIDxhY3Rpb24gYW5kcm9pZDpuYW1lPSJhbmRyb2lkLmludGVudC5hY3Rpb24uTUFJTiIgLyA+CiAgICAgICAgICAgICAgICA8Y2F0ZWdvcnkgYW5kcm9pZDpuYW1lPSJhbmRyb2lkLmludGVudC5jYXRlZ29yeS5MQVVOQ0hFUiIgLyA+CiAgICAgICAgICAgIDwvaW50ZW50LWZpbHRlcj4KICAgICAgICA8L2FjdGl2aXR5PgogICAgPC9hcHBsaWNhdGlvbj4KPC9tYW5pZmVzdD4=" | base64 -d > app/src/main/AndroidManifest.xml
-          
-          # Inject native theme safely using working delimiter format
-          sed -i 's|@value|@android:style/Theme.DeviceDefault.NoActionBar|g' app/src/main/AndroidManifest.xml
+          # 3. Write raw, transparent, unencoded AndroidManifest.xml safely linking your desktop icon
+          cat << 'EOF' > app/src/main/AndroidManifest.xml
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://android.com">
+              <application
+                  android:allowBackup="true"
+                  android:hardwareAccelerated="true"
+                  android:label="EW Study Bible"
+                  android:icon="@mipmap/ic_launcher"
+                  android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
+                  <activity 
+                      android:name="com.guzik.app.MainActivity"
+                      android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          EOF
 
           # 4. Write pure native MainActivity.java using standard android.app.Activity (Bypasses Jetpack dependencies)
           cat << 'EOF' > app/src/main/java/com/guzik/app/MainActivity.java
@@ -136,7 +151,7 @@ jobs:
             echo "Warning: app2.html not detected at root, deployed placeholder."
           fi
 
-          # Icon handling layer integrated safely to protect manifest compilation
+          # Icon handling layer integrated safely to populate launcher resources
           if [ -f "icon.png" ]; then
             echo "Custom icon.png detected! Injected into resource buckets."
             for d in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do cp icon.png app/src/main/res/$d/ic_launcher.png; done
