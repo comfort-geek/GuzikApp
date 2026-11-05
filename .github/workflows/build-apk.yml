@@ -30,15 +30,16 @@ jobs:
 
       - name: Generate Core Android Framework Files Natively
         run: |
+          # 1. Create directory paths for Manifest, Source code, and resource directories
+          mkdir -p app/src/main/
           mkdir -p app/src/main/java/com/guzik/app/
-          mkdir -p app/src/main/assets/bible
-          mkdir -p app/src/main/assets/commentary
           mkdir -p app/src/main/res/mipmap-mdpi
           mkdir -p app/src/main/res/mipmap-hdpi
           mkdir -p app/src/main/res/mipmap-xhdpi
           mkdir -p app/src/main/res/mipmap-xxhdpi
           mkdir -p app/src/main/res/mipmap-xxxhdpi
 
+          # 2. Generate module-level build.gradle file matching working architecture
           cat << 'EOF' > app/build.gradle
           plugins {
               id 'com.android.application'
@@ -48,55 +49,21 @@ jobs:
               compileSdk 34
               defaultConfig {
                   applicationId "com.guzik.app"
-                  minSdk 24
+                  minSdk 21
                   targetSdk 34
                   versionCode 2
                   versionName "2.0"
               }
-              buildTypes {
-                  release {
-                      minifyEnabled false
-                      shrinkResources false
-                  }
-              }
-              compileOptions {
-                  sourceCompatibility JavaVersion.VERSION_17
-                  targetCompatibility JavaVersion.VERSION_17
-              }
-          }
-          dependencies {
-              implementation 'androidx.appcompat:appcompat:1.6.1'
-              implementation 'androidx.webkit:webkit:1.9.0'
           }
           EOF
 
-          cat << 'EOF' > app/src/main/AndroidManifest.xml
-          <?xml version="1.0" encoding="utf-8"?>
-          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-              <uses-permission android:name="android.permission.INTERNET" />
-              <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-              <application
-                  android:allowBackup="true"
-                  android:hardwareAccelerated="true"
-                  android:largeHeap="true"
-                  android:label="EW Study Bible"
-                  android:icon="@mipmap/ic_launcher"
-                  android:roundIcon="@mipmap/ic_launcher"
-                  android:theme="@android:style/Theme.DeviceDefault.NoActionBar"
-                  android:usesCleartextTraffic="true">
-                  <activity
-                      android:name="com.guzik.app.MainActivity"
-                      android:exported="true"
-                      android:configChanges="orientation|screenSize|keyboardHidden">
-                      <intent-filter>
-                          <action android:name="android.intent.action.MAIN" />
-                          <category android:name="android.intent.category.LAUNCHER" />
-                      </intent-filter>
-                  </activity>
-              </application>
-          </manifest>
-          EOF
+          # 3. Write a validated AndroidManifest.xml matching your base template structure
+          echo "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4KPG1hbmlmZXN0IHhtbG5zOmFuZHJvaWQ9Imh0dHA6Ly9zY2hlbWFzLmFuZHJvaWQuY29tL2Fway9yZXMvYW5kcm9pZCI+CiAgICA8YXBwbGljYXRpb24KICAgICAgICBhbmRyb2lkOmFsbG93QmFja3VwPSJ0cnVlIgogICAgICAgIGFuZHJvaWQ6aGFyZHdhcmVBY2NlbGVyYXRlZD0idHJ1ZSIKICAgICAgICBhbmRyb2lkOmxhYmVsPSJFVyBTdHVkeSBCaWJsZSIKICAgICAgICBhbmRyb2lkOnRoZW1lPSJAdmFsdWUiPgogICAgICAgIDxhY3Rpdml0eSAKICAgICAgICAgICAgYW5kcm9pZDpuYW1lPSJjb20uZ3V6aWsuYXBwLk1haW5BY3Rpdml0eSIKICAgICAgICAgICAgYW5kcm9pZDpleHBvcnRlZD0idHJ1ZSI+CiAgICAgICAgICAgIDxpbnRlbnQtZmlsdGVyPgogICAgICAgICAgICAgICAgPGFjdGlvbiBhbmRyb2lkOm5hbWU9ImFuZHJvaWQuaW50ZW50LmFjdGlvbi5NQUlOIiAvPgogICAgICAgICAgICAgICAgPGNhdGVnb3J5IGFuZHJvaWQ6bmFtZT0iYW5kcm9pZC5pbnRlbnQuY2F0ZWdvcnkuTEFVTkNIRVIiIC8+CiAgICAgICAgICAgIDwvaW50ZW50LWZpbHRlcj4KICAgICAgICA8L2FjdGl2aXR5PgogICAgPC9hcHBsaWNhdGlvbj4KPC9tYW5pZmVzdD4=" | base64 -d > app/src/main/AndroidManifest.xml
+          
+          # Inject native theme safely using working delimiter format
+          sed -i 's|@value|@android:style/Theme.DeviceDefault.NoActionBar|g' app/src/main/AndroidManifest.xml
 
+          # 4. Write pure native MainActivity.java using standard android.app.Activity (Bypasses Jetpack dependencies)
           cat << 'EOF' > app/src/main/java/com/guzik/app/MainActivity.java
           package com.guzik.app;
 
@@ -105,7 +72,6 @@ jobs:
           import android.webkit.WebSettings;
           import android.webkit.WebView;
           import android.webkit.WebViewClient;
-          import android.window.OnBackPressedDispatcher;
           import java.io.File;
 
           public class MainActivity extends Activity {
@@ -115,35 +81,30 @@ jobs:
               protected void onCreate(Bundle savedInstanceState) {
                   super.onCreate(savedInstanceState);
                   createFolders();
+                  
                   webView = new WebView(this);
                   setContentView(webView);
 
-                  WebSettings s = webView.getSettings();
-                  s.setJavaScriptEnabled(true);
-                  s.setDomStorageEnabled(true);
-                  s.setDatabaseEnabled(true);
-                  s.setCacheMode(WebSettings.LOAD_CACHE_ELSE_NETWORK);
-                  s.setAllowFileAccess(true);
-                  s.setAllowContentAccess(true);
-                  s.setAllowFileAccessFromFileURLs(true);
-                  s.setAllowUniversalAccessFromFileURLs(true);
-                  s.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
-                  s.setLoadsImagesAutomatically(true);
+                  WebSettings ws = webView.getSettings();
+                  ws.setJavaScriptEnabled(true);
+                  ws.setDomStorageEnabled(true);
                   
-                  webView.setLayerType(android.view.View.LAYER_TYPE_HARDWARE, null);
+                  ws.setAllowFileAccess(true);
+                  ws.setAllowContentAccess(true);
+                  ws.setAllowFileAccessFromFileURLs(true);
+                  ws.setAllowUniversalAccessFromFileURLs(true);
+                  
                   webView.setWebViewClient(new WebViewClient());
                   webView.loadUrl("file:///android_asset/app2.html");
+              }
 
-                  getOnBackPressedDispatcher().addCallback(this, new androidx.activity.OnBackPressedCallback(true) {
-                      @Override
-                      public void handleOnBackPressed() {
-                          if (webView.canGoBack()) {
-                              webView.goBack();
-                          } else {
-                              finish();
-                          }
-                      }
-                  });
+              @Override
+              public void onBackPressed() {
+                  if (webView != null && webView.canGoBack()) {
+                      webView.goBack();
+                  } else {
+                      super.onBackPressed();
+                  }
               }
 
               private void createFolders() {
@@ -158,23 +119,23 @@ jobs:
           }
           EOF
 
-      - name: Create Assets and Icon
+      - name: Create Assets Folder and Copy HTML
         run: |
           mkdir -p app/src/main/assets/
           if [ -f "app2.html" ]; then
             cp app2.html app/src/main/assets/app2.html
+            echo "Copied app2.html asset into build tree."
           else
             echo "<html><body><h1>EW Study Bible</h1><p>app2.html missing - add file to repo root</p></body></html>" > app/src/main/assets/app2.html
+            echo "Warning: app2.html not detected at root, deployed placeholder."
           fi
 
+          # Icon handling layer integrated safely to protect manifest compilation
           if [ -f "icon.png" ]; then
-            echo "Using icon.png"
             for d in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do cp icon.png app/src/main/res/$d/ic_launcher.png; done
           elif [ -f "icon.jpg" ]; then
-            echo "Using icon.jpg"
             for d in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do cp icon.jpg app/src/main/res/$d/ic_launcher.png; done
           else
-            echo "No custom icon - creating placeholder icon so manifest parsing doesn't fail"
             for d in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
               echo "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=" | base64 -d > app/src/main/res/$d/ic_launcher.png
             done
