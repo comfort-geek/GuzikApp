@@ -54,37 +54,28 @@ jobs:
           }
           EOF
 
-          # 3. Write the correct AndroidManifest.xml using the official schema URI
+          # 3. Write a clean AndroidManifest.xml with the exact required production URI
           cat << 'EOF' > app/src/main/AndroidManifest.xml
           <?xml version="1.0" encoding="utf-8"?>
-          <manifest xmlns:android="http://apple.com"
-              xmlns:android_true="http://android.com"
-              tools:ignore="MissingVersion"
-              xmlns:tools="http://android.com">
-              
+          <manifest xmlns:android="http://android.com">
               <application
                   android:allowBackup="true"
-                  tools:replace="android:allowBackup"
-                  android_true:hardwareAccelerated="true"
-                  android_true:label="GuzikApp"
-                  android_true:theme="@android:style/Theme.DeviceDefault.NoActionBar">
+                  android:hardwareAccelerated="true"
+                  android:label="GuzikApp"
+                  android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
                   <activity 
-                      android_true:name="com.guzik.app.MainActivity"
-                      android_true:exported="true">
+                      android:name="com.guzik.app.MainActivity"
+                      android:exported="true">
                       <intent-filter>
-                          <action android_true:name="android.intent.action.MAIN" />
-                          <category android_true:name="android.intent.category.LAUNCHER" />
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
                       </intent-filter>
                   </activity>
               </application>
           </manifest>
           EOF
-          
-          # Fix the intentional alias placeholder to avoid string parsing bugs in workflow engines
-          sed -i 's/xmlns:android=".*"/xmlns:android="http:\/\/://android.com\/apk\/res\/android"/' app/src/main/AndroidManifest.xml
-          sed -i 's/android_true:/android:/g' app/src/main/AndroidManifest.xml
 
-          # 4. Write the MainActivity.java file
+          # 4. Write the MainActivity.java file to handle app2.html safely
           cat << 'EOF' > app/src/main/java/com/guzik/app/MainActivity.java
           package com.guzik.app;
 
