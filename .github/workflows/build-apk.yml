@@ -27,20 +27,40 @@ jobs:
 
       - name: Generate Core Android Framework Files Natively
         run: |
-          # 1. Create directory paths for Manifest and Source code
+          # 1. Create directory paths for Manifest, Source code, and build files
           mkdir -p app/src/main/
           mkdir -p app/src/main/java/com/guzik/app/
 
-          # 2. Write the corrected AndroidManifest.xml configuration file
+          # 2. Generate a valid module-level build.gradle file
+          cat << 'EOF' > app/build.gradle
+          plugins {
+              id 'com.android.application'
+          }
+          android {
+              namespace 'com.guzik.app'
+              compileSdk 34
+              defaultConfig {
+                  applicationId "com.guzik.app"
+                  minSdk 21
+                  targetSdk 34
+                  versionCode 1
+                  versionName "1.0"
+              }
+          }
+          dependencies {
+              implementation 'androidx.appcompat:appcompat:1.6.1'
+          }
+          EOF
+
+          # 3. Write a simplified AndroidManifest.xml using standard Android system styles
           cat << 'EOF' > app/src/main/AndroidManifest.xml
           <?xml version="1.0" encoding="utf-8"?>
-          <manifest xmlns:android="http://android.com"
-              package="com.guzik.app">
+          <manifest xmlns:android="http://android.com">
               <application
                   android:allowBackup="true"
                   android:hardwareAccelerated="true"
                   android:label="GuzikApp"
-                  android:theme="@style/Theme.AppCompat.Light.NoActionBar">
+                  android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
                   <activity 
                       android:name="com.guzik.app.MainActivity"
                       android:exported="true">
@@ -53,7 +73,7 @@ jobs:
           </manifest>
           EOF
 
-          # 3. Write the MainActivity.java file to process app2.html safely
+          # 4. Write the MainActivity.java file
           cat << 'EOF' > app/src/main/java/com/guzik/app/MainActivity.java
           package com.guzik.app;
 
@@ -75,7 +95,6 @@ jobs:
                   ws.setJavaScriptEnabled(true);
                   ws.setDomStorageEnabled(true);
                   
-                  # Security overrides required to load large local files without crashing
                   ws.setAllowFileAccess(true);
                   ws.setAllowContentAccess(true);
                   ws.setAllowFileAccessFromFileURLs(true);
@@ -93,8 +112,9 @@ jobs:
           cp app2.html app/src/main/assets/app2.html
           echo "Copied heavy resource directly to internal builder asset location."
 
-      - name: Build APK
-        run: gradle assembleDebug -Pandroid.useAndroidX=true --stacktrace
+      - name: Build APK with Error Diagnostics
+        run: |
+          gradle :app:assembleDebug -Pandroid.useAndroidX=true --stacktrace || (echo "=== PRINTING MERGER ERROR LOG ===" && cat app/build/outputs/logs/manifest-merger-debug-report.txt && exit 1)
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
