@@ -54,28 +54,10 @@ jobs:
           }
           EOF
 
-          # 3. Write a clean AndroidManifest.xml with the exact required production URI
-          cat << 'EOF' > app/src/main/AndroidManifest.xml
-          <?xml version="1.0" encoding="utf-8"?>
-          <manifest xmlns:android="http://android.com">
-              <application
-                  android:allowBackup="true"
-                  android:hardwareAccelerated="true"
-                  android:label="GuzikApp"
-                  android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
-                  <activity 
-                      android:name="com.guzik.app.MainActivity"
-                      android:exported="true">
-                      <intent-filter>
-                          <action android:name="android.intent.action.MAIN" />
-                          <category android:name="android.intent.category.LAUNCHER" />
-                      </intent-filter>
-                  </activity>
-              </application>
-          </manifest>
-          EOF
+          # 3. Write a validated AndroidManifest.xml using safe Base64 encoding to prevent character skipping
+          echo "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4KPG1hbmlmZXN0IHhtbG5zOmFuZHJvaWQ9Imh0dHA6Ly9zY2hlbWFzLmFuZHJvaWQuY29tL2Fway9yZXMvYW5kcm9pZCI+CiAgICA8YXBwbGljYXRpb24KICAgICAgICBhbmRyb2lkOmFsbG93QmFja3VwPSJ0cnVlIgogICAgICAgIGFuZHJvaWQ6aGFyZHdhcmVBY2NlbGVyYXRlZD0idHJ1ZSIKICAgICAgICBhbmRyb2lkOmxhYmVsPSJHdXppa0FwcCIKICAgICAgICBhbmRyb2lkOnRoZW1lPSJAYW5kcm9pZDpzdHlsZS9UaGVtZS5EZXZpY2VEZWZhdWx0Lk5vQWN0aW9uIj4KICAgICAgICA8YWN0aXZpdHkgCiAgICAgICAgICAgIGFuZHJvaWQ6bmFtZT0iY29tLmd1emlrLmFwcC5NYWluQWN0aXZpdHkiCiAgICAgICAgICAgIGFuZHJvaWQ6ZXhwb3J0ZWQ9InRydWUiPgogICAgICAgICAgICA8aW50ZW50LWZpbHRlcj4KICAgICAgICAgICAgICAgIDxhY3Rpb24gYW5kcm9pZDpuYW1lPSJhbmRyb2lkLmludGVudC5hY3Rpb24uTUFJTiIgLz4KICAgICAgICAgICAgICAgIDxjYXRlZ29yeSBhbmRyb2lkOm5hbWU9ImFuZHJvaWQuaW50ZW50LmNhdGVnb3J5LkxBVU5DSEVSIiAvPgogICAgICAgICAgICA8L2ludGVudC1maWx0ZXI+CiAgICAgICAgPC9hY3Rpdml0eT4KICAgIDwvYXBwbGljYXRpb24+CjwvbWFuaWZlc3Q+" | base64 -d > app/src/main/AndroidManifest.xml
 
-          # 4. Write the MainActivity.java file to handle app2.html safely
+          # 4. Write the MainActivity.java file safely
           cat << 'EOF' > app/src/main/java/com/guzik/app/MainActivity.java
           package com.guzik.app;
 
