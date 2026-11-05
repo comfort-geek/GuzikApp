@@ -54,11 +54,17 @@ jobs:
                   versionCode 2
                   versionName "2.0"
               }
+              // Tells the build system explicitly where to look for your app icons
+              sourceSets {
+                  main {
+                      res.srcDirs = ['src/main/res']
+                  }
+              }
           }
           EOF
 
           # 3. Write a validated AndroidManifest.xml matching your base template structure
-          echo "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4KPG1hbmlmZXN0IHhtbG5zOmFuZHJvaWQ9Imh0dHA6Ly9zY2hlbWFzLmFuZHJvaWQuY29tL2Fway9yZXMvYW5kcm9pZCI+CiAgICA8YXBwbGljYXRpb24KICAgICAgICBhbmRyb2lkOmFsbG93QmFja3VwPSJ0cnVlIgogICAgICAgIGFuZHJvaWQ6aGFyZHdhcmVBY2NlbGVyYXRlZD0idHJ1ZSIKICAgICAgICBhbmRyb2lkOmxhYmVsPSJFVyBTdHVkeSBCaWJsZSIKICAgICAgICBhbmRyb2lkOnRoZW1lPSJAdmFsdWUiPgogICAgICAgIDxhY3Rpdml0eSAKICAgICAgICAgICAgYW5kcm9pZDpuYW1lPSJjb20uZ3V6aWsuYXBwLk1haW5BY3Rpdml0eSIKICAgICAgICAgICAgYW5kcm9pZDpleHBvcnRlZD0idHJ1ZSI+CiAgICAgICAgICAgIDxpbnRlbnQtZmlsdGVyPgogICAgICAgICAgICAgICAgPGFjdGlvbiBhbmRyb2lkOm5hbWU9ImFuZHJvaWQuaW50ZW50LmFjdGlvbi5NQUlOIiAvPgogICAgICAgICAgICAgICAgPGNhdGVnb3J5IGFuZHJvaWQ6bmFtZT0iYW5kcm9pZC5pbnRlbnQuY2F0ZWdvcnkuTEFVTkNIRVIiIC8+CiAgICAgICAgICAgIDwvaW50ZW50LWZpbHRlcj4KICAgICAgICA8L2FjdGl2aXR5PgogICAgPC9hcHBsaWNhdGlvbj4KPC9tYW5pZmVzdD4=" | base64 -d > app/src/main/AndroidManifest.xml
+          echo "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4KPG1hbmlmZXN0IHhtbG5zOmFuZHJvaWQ9Imh0dHA6Ly9zY2hlbWFzLmFuZHJvaWQuY29tL2Fway9yZXMvYW5kcm9pZCI+CiAgICA8YXBwbGljYXRpb24KICAgICAgICBhbmRyb2lkOmFsbG93QmFja3VwPSJ0cnVlIgogICAgICAgIGFuZHJvaWQ6aGFyZHdhcmVBY2NlbGVyYXRlZD0idHJ1ZSIKICAgICAgICBhbmRyb2lkOmxhYmVsPSJFVyBTdHVkeSBCaWJsZSIKICAgICAgICBhbmRyb2lkOmljb249IkBtaXBtYXAvaWNfbGF1bmNoZXIiCiAgICAgICAgYW5kcm9pZDp0aGVtZT0iQHZhbHVlIj4KICAgICAgICA8YWN0aXZpdHkgCiAgICAgICAgICAgIGFuZHJvaWQ6bmFtZT0iY29tLmd1emlrLmFwcC5NYWluQWN0aXZpdHkiCiAgICAgICAgICAgIGFuZHJvaWQ6ZXhwb3J0ZWQ9InRydWUiPgogICAgICAgICAgICA8aW50ZW50LWZpbHRlcj4KICAgICAgICAgICAgICAgIDxhY3Rpb24gYW5kcm9pZDpuYW1lPSJhbmRyb2lkLmludGVudC5hY3Rpb24uTUFJTiIgLyA+CiAgICAgICAgICAgICAgICA8Y2F0ZWdvcnkgYW5kcm9pZDpuYW1lPSJhbmRyb2lkLmludGVudC5jYXRlZ29yeS5MQVVOQ0hFUiIgLyA+CiAgICAgICAgICAgIDwvaW50ZW50LWZpbHRlcj4KICAgICAgICA8L2FjdGl2aXR5PgogICAgPC9hcHBsaWNhdGlvbj4KPC9tYW5pZmVzdD4=" | base64 -d > app/src/main/AndroidManifest.xml
           
           # Inject native theme safely using working delimiter format
           sed -i 's|@value|@android:style/Theme.DeviceDefault.NoActionBar|g' app/src/main/AndroidManifest.xml
@@ -132,10 +138,13 @@ jobs:
 
           # Icon handling layer integrated safely to protect manifest compilation
           if [ -f "icon.png" ]; then
+            echo "Custom icon.png detected! Injected into resource buckets."
             for d in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do cp icon.png app/src/main/res/$d/ic_launcher.png; done
           elif [ -f "icon.jpg" ]; then
+            echo "Custom icon.jpg detected! Injected into resource buckets."
             for d in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do cp icon.jpg app/src/main/res/$d/ic_launcher.png; done
           else
+            echo "No custom icon detected at root. Constructing minimal fallback asset."
             for d in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
               echo "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=" | base64 -d > app/src/main/res/$d/ic_launcher.png
             done
