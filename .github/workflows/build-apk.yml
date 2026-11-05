@@ -76,7 +76,7 @@ jobs:
           }
           EOF
 
-          # 4. Corrected official schema URL layout 
+          # 4. Corrected AndroidManifest.xml using the official schema URL
           cat << 'EOF' > app/src/main/AndroidManifest.xml
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://android.com">
