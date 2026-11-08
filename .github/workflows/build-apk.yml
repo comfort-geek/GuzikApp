@@ -21,16 +21,9 @@ jobs:
           gradle-version: '8.5'
           cache-disabled: true
 
-      - name: Inject AndroidX and Gradle Configurations
+      - name: Copy Assets and Launcher Icons into App Module
         run: |
-          echo "android.useAndroidX=true" >> gradle.properties
-          echo "android.enableJetifier=true" >> gradle.properties
-          echo "org.gradle.jvmargs=-Xmx3072m -XX:MaxMetaspaceSize=512m" >> gradle.properties
-          echo "include ':app'" > settings.gradle
-
-      - name: Create Project Folder Structure
-        run: |
-          mkdir -p app/src/main/java/com/guzik/app/
+          # Ensure target asset and resource directories exist inside your existing app folder
           mkdir -p app/src/main/assets/
           mkdir -p app/src/main/res/mipmap-mdpi/
           mkdir -p app/src/main/res/mipmap-hdpi/
@@ -38,64 +31,29 @@ jobs:
           mkdir -p app/src/main/res/mipmap-xxhdpi/
           mkdir -p app/src/main/res/mipmap-xxxhdpi/
 
-      - name: Generate Module Build Gradle
-        run: |
-          echo "plugins { id 'com.android.application' }" > app/build.gradle
-          echo "android { namespace 'com.guzik.app'; compileSdk 34; defaultConfig { applicationId 'com.guzik.app'; minSdk 21; targetSdk 34; versionCode 1; versionName '1.0' } }" >> app/build.gradle
-          echo "dependencies { implementation 'androidx.core:core:1.12.0' }" >> app/build.gradle
+          # Copy your main HTML file from the root folder into the compilation assets
+          cp app2.html app/src/main/assets/app2.html
+          
+          # Inject the JavaScript notification bridge function right before the closing body tag
+          sed -i 's|</body>|<script>function saveNotifTimes(){ var vt = document.getElementById("nt-verse-time").value.split(":"); var rt = document.getElementById("nt-rem-time").value.split(":"); if(window.AndroidNotif){ AndroidNotif.scheduleNotif(1, parseInt(vt), parseInt(vt), "📖 Daily Verse", "Open EW Study Bible for todays verse"); AndroidNotif.scheduleNotif(2, parseInt(rt), parseInt(rt), "⏰ Bible Reminder", "Time to read your Bible"); } else { alert("In APK only - test after build"); } }</script></body>|g' app/src/main/assets/app2.html
 
-      - name: Generate Android Manifest
-        run: |
-          echo '<?xml version="1.0" encoding="utf-8"?>' > app/src/main/AndroidManifest.xml
-          echo '<manifest xmlns:android="http://android.com">' >> app/src/main/AndroidManifest.xml
-          echo '    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />' >> app/src/main/AndroidManifest.xml
-          echo '    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />' >> app/src/main/AndroidManifest.xml
-          echo '    <application android:allowBackup="true" android:hardwareAccelerated="true" android:label="EW Study Bible" android:icon="@mipmap/ic_launcher" android:theme="@android:style/Theme.DeviceDefault.NoActionBar">' >> app/src/main/AndroidManifest.xml
-          echo '        <activity android:name="com.guzik.app.MainActivity" android:exported="true">' >> app/src/main/AndroidManifest.xml
-          echo '            <intent-filter>' >> app/src/main/AndroidManifest.xml
-          echo '                <action android:name="android.intent.action.MAIN" />' >> app/src/main/AndroidManifest.xml
-          echo '                <category android:name="android.intent.category.LAUNCHER" />' >> app/src/main/AndroidManifest.xml
-          echo '            </intent-filter>' >> app/src/main/AndroidManifest.xml
-          echo '        </activity>' >> app/src/main/AndroidManifest.xml
-          echo '        <receiver android:name="com.guzik.app.MainActivity$NotifReceiver" android:exported="true">' >> app/src/main/AndroidManifest.xml
-          echo '            <intent-filter><action android:name="BIBLE_NOTIF" /></intent-filter>' >> app/src/main/AndroidManifest.xml
-          echo '        </receiver>' >> app/src/main/AndroidManifest.xml
-          echo '    </application>' >> app/src/main/AndroidManifest.xml
-          echo '</manifest>' >> app/src/main/AndroidManifest.xml
+          # Copy your root icon.png cleanly into all targeted Android launcher densities
+          if [ -f "icon.png" ]; then
+              for folder in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
+                  cp icon.png app/src/main/res/$folder/ic_launcher.png
+              done
+          else
+              for folder in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
+                  echo "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=" | base64 -d > app/src/main/res/$folder/ic_launcher.png
+              done
+          fi
 
-      - name: Generate MainActivity Java Code
-        run: |
-          echo "package com.guzik.app;" > app/src/main/java/com/guzik/app/MainActivity.java
-          echo "import android.app.Activity; import android.app.AlarmManager; import android.app.NotificationChannel; import android.app.NotificationManager; import android.app.PendingIntent; import android.content.BroadcastReceiver; import android.content.Context; import android.content.Intent; import android.content.IntentFilter; import android.content.pm.PackageManager; import android.os.Build; import android.os.Bundle; import android.view.WindowManager; import android.webkit.JavascriptInterface; import android.webkit.WebSettings; import android.webkit.WebView; import android.webkit.WebViewClient; import android.widget.Toast; import androidx.core.app.NotificationCompat; import java.util.Calendar;" >> app/src/main/java/com/guzik/app/MainActivity.java
-          echo "public class MainActivity extends Activity {" >> app/src/main/java/com/guzik/app/MainActivity.java
-          echo "    private WebView webView; private long lastBack = 0;" >> app/src/main/java/com/guzik/app/MainActivity.java
-          echo "    public static class NotifReceiver extends BroadcastReceiver {" >> app/src/main/java/com/guzik/app/MainActivity.java
-          echo "        @Override public void onReceive(Context ctx, Intent intent) {" >> app/src/main/java/com/guzik/app/MainActivity.java
-          echo "            String title = intent.getStringExtra(\"title\"); String body = intent.getStringExtra(\"body\");" >> app/src/main/java/com/guzik/app/MainActivity.java
-          echo "            NotificationManager nm = (NotificationManager) ctx.getSystemService(Context.NOTIFICATION_SERVICE);" >> app/src/main/java/com/guzik/app/MainActivity.java
-          echo "            if (Build.VERSION.SDK_INT >= 26) { nm.createNotificationChannel(new NotificationChannel(\"bible\", \"Bible Notifications\", NotificationManager.IMPORTANCE_DEFAULT)); }" >> app/src/main/java/com/guzik/app/MainActivity.java
-          echo "            Intent open = new Intent(ctx, MainActivity.class);" >> app/src/main/java/com/guzik/app/MainActivity.java
-          echo "            PendingIntent pi = PendingIntent.getActivity(ctx, 0, open, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);" >> app/src/main/java/com/guzik/app/MainActivity.java
-          echo "            NotificationCompat.Builder b = new NotificationCompat.Builder(ctx, \"bible\").setSmallIcon(android.R.drawable.ic_dialog_info).setContentTitle(title).setContentText(body).setContentIntent(pi).setAutoCancel(true);" >> app/src/main/java/com/guzik/app/MainActivity.java
-          echo "            nm.notify((int)System.currentTimeMillis(), b.build());" >> app/src/main/java/com/guzik/app/MainActivity.java
-          echo "        }" >> app/src/main/java/com/guzik/app/MainActivity.java
-          echo "    }" >> app/src/main/java/com/guzik/app/MainActivity.java
-          echo "    public class NotifBridge {" >> app/src/main/java/com/guzik/app/MainActivity.java
-          echo "        @JavascriptInterface public void scheduleNotif(int id, int hour, int minute, String title, String body) {" >> app/src/main/java/com/guzik/app/MainActivity.java
-          echo "            AlarmManager am = (AlarmManager) getSystemService(ALARM_SERVICE);" >> app/src/main/java/com/guzik/app/MainActivity.java
-          echo "            Intent i = new Intent(MainActivity.this, NotifReceiver.class); i.putExtra(\"title\", title); i.putExtra(\"body\", body);" >> app/src/main/java/com/guzik/app/MainActivity.java
-          echo "            PendingIntent pi = PendingIntent.getBroadcast(MainActivity.this, id, i, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);" >> app/src/main/java/com/guzik/app/MainActivity.java
-          echo "            Calendar c = Calendar.getInstance(); c.set(Calendar.HOUR_OF_DAY, hour); c.set(Calendar.MINUTE, minute); c.set(Calendar.SECOND, 0);" >> app/src/main/java/com/guzik/app/MainActivity.java
-          echo "            if (c.getTimeInMillis() < System.currentTimeMillis()) c.add(Calendar.DAY_OF_YEAR, 1);" >> app/src/main/java/com/guzik/app/MainActivity.java
-          echo "            am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, c.getTimeInMillis(), pi);" >> app/src/main/java/com/guzik/app/MainActivity.java
-          echo "            runOnUiThread(() -> Toast.makeText(MainActivity.this, \"Notification set: \" + hour + \":\" + minute, Toast.LENGTH_SHORT).show());" >> app/src/main/java/com/guzik/app/MainActivity.java
-          echo "        }" >> app/src/main/java/com/guzik/app/MainActivity.java
-          echo "    }" >> app/src/main/java/com/guzik/app/MainActivity.java
-          echo "    @Override protected void onCreate(Bundle savedInstanceState) {" >> app/src/main/java/com/guzik/app/MainActivity.java
-          echo "        super.onCreate(savedInstanceState); getWindow().setFlags(WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED, WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED); " >> app/src/main/java/com/guzik/app/MainActivity.java
-          echo "        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) { requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, 1); }" >> app/src/main/java/com/guzik/app/MainActivity.java
-          echo "        registerReceiver(new NotifReceiver(), new IntentFilter(\"BIBLE_NOTIF\"), Context.RECEIVER_EXPORTED);" >> app/src/main/java/com/guzik/app/MainActivity.java
-          echo "        webView = new WebView(this); setContentView(webView); WebSettings ws = webView.getSettings(); ws.setJavaScriptEnabled(true); ws.setDomStorageEnabled(true);" >> app/src/main/java/com/guzik/app/MainActivity.java
-          echo "        ws.setAllowFileAccess(true); ws.setAllowContentAccess(true); ws.setAllowFileAccessFromFileURLs(true); ws.setAllowUniversalAccessFromFileURLs(true); ws.setCacheMode(WebSettings.LOAD_DEFAULT);" >> app/src/main/java/com/guzik/app/MainActivity.java
-          echo "        webView.addJavascriptInterface(new NotifBridge(), \"AndroidNotif\"); webView.setWebViewClient(new WebViewClient()); webView.loadUrl(\"file:///android_asset/app2.html\");" >> app/src/main/java/com/guzik/app/MainActivity.java
-          echo "    }" >> app/src/main/java/com/guzik/app/MainActivity.java
+      - name: Build Android Debug APK
+        run: gradle :app:assembleDebug -Pandroid.useAndroidX=true --stacktrace
+
+      - name: Upload Finished APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: EW-Study-Bible-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
