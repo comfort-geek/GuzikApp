@@ -92,7 +92,7 @@ jobs:
           echo "        }" >> app/src/main/java/com/guzik/app/MainActivity.java
           echo "    }" >> app/src/main/java/com/guzik/app/MainActivity.java
           echo "    @Override protected void onCreate(Bundle savedInstanceState) {" >> app/src/main/java/com/guzik/app/MainActivity.java
-          echo "        super.onCreate(savedInstanceState); getWindow().setFlags(WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED, WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED);" >> app/src/main/java/com/guzik/app/MainActivity.java
+          echo "        super.onCreate(savedInstanceState); getWindow().setFlags(WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED, WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED); " >> app/src/main/java/com/guzik/app/MainActivity.java
           echo "        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) { requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, 1); }" >> app/src/main/java/com/guzik/app/MainActivity.java
           echo "        registerReceiver(new NotifReceiver(), new IntentFilter(\"BIBLE_NOTIF\"), Context.RECEIVER_EXPORTED);" >> app/src/main/java/com/guzik/app/MainActivity.java
           echo "        webView = new WebView(this); setContentView(webView); WebSettings ws = webView.getSettings(); ws.setJavaScriptEnabled(true); ws.setDomStorageEnabled(true);" >> app/src/main/java/com/guzik/app/MainActivity.java
