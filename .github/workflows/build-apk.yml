@@ -14,7 +14,6 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
-          cache: ''
 
       - uses: gradle/actions/setup-gradle@v3
         with:
@@ -144,13 +143,10 @@ jobs:
                   ws.setAllowFileAccess(true); ws.setAllowContentAccess(true);
                   ws.setAllowFileAccessFromFileURLs(true); ws.setAllowUniversalAccessFromFileURLs(true);
                   ws.setCacheMode(WebSettings.LOAD_DEFAULT);
-                  
                   ws.setJavaScriptCanOpenWindowsAutomatically(true);
                   ws.setSupportMultipleWindows(true);
-
                   webView.setWebViewClient(new WebViewClient());
                   webView.setWebChromeClient(new WebChromeClient());
-                  
                   webView.loadUrl("file:///android_asset/app2.html");
               }
 
@@ -171,9 +167,7 @@ jobs:
           mkdir -p app/src/main/assets/
           mkdir -p app/src/main/res/values/
           mkdir -p app/src/main/res/drawable/
-          
           echo '<?xml version="1.0" encoding="utf-8"?><resources><string name="app_name">EW Study Bible</string></resources>' > app/src/main/res/values/strings.xml
-
           if [ -f "icon.png" ]; then
               cp icon.png app/src/main/res/drawable/ic_launcher.png
               cp icon.png app/src/main/res/drawable/icon.png
@@ -183,17 +177,14 @@ jobs:
                   cp icon.png app/src/main/res/$folder/ic_launcher_round.png
               done
           fi
-
           if [ -f "app/src/main/AndroidManifest.xml" ]; then
               sed -i 's|android:label="[^"]*"|android:label="@string/app_name"|g' app/src/main/AndroidManifest.xml
               sed -i 's|android:icon="[^"]*"|android:icon="@mipmap/ic_launcher"|g' app/src/main/AndroidManifest.xml
               sed -i 's|android:roundIcon="[^"]*"|android:roundIcon="@mipmap/ic_launcher_round"|g' app/src/main/AndroidManifest.xml
           fi
-
           if ! grep -q "com.google.gms:google-services" build.gradle; then
               sed -i "/dependencies {/a \        classpath 'com.google.gms:google-services:4.4.1'" build.gradle
           fi
-
           if ! grep -q "com.google.gms.google-services" app/build.gradle; then
               echo "apply plugin: 'com.google.gms.google-services'" >> app/build.gradle
           fi
@@ -204,3 +195,5 @@ jobs:
           <script>
           function saveNotifTimes(){
             var vt = document.getElementById('nt-verse-time').value.split(':');
+            var rt = document.getElementById('nt-rem-time').value.split(':');
+            if(window.AndroidNotif){
