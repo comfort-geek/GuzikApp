@@ -73,21 +73,113 @@ jobs:
           </manifest>
           EOF
 
-          # MainActivity.java generation code block (Placeholder line 79 error removed and resolved here)
           cat << 'EOF' > app/src/main/java/com/guzik/app/MainActivity.java
           package com.guzik.app;
+
           import android.app.Activity;
+          import android.app.AlarmManager;
+          import android.app.NotificationChannel;
+          import android.app.NotificationManager;
+          import android.app.PendingIntent;
+          import android.content.BroadcastReceiver;
+          import android.content.Context;
+          import android.content.Intent;
+          import android.os.Build;
           import android.os.Bundle;
-          
+          import android.webkit.JavascriptInterface;
+          import android.webkit.WebSettings;
+          import android.webkit.WebView;
+          import android.webkit.WebViewClient;
+          import androidx.core.app.NotificationCompat;
+          import java.util.Calendar;
+
           public class MainActivity extends Activity {
+              private WebView webView;
+
               @Override
               protected void onCreate(Bundle savedInstanceState) {
                   super.onCreate(savedInstanceState);
+                  
+                  webView = new WebView(this);
+                  setContentView(webView);
+
+                  WebSettings settings = webView.getSettings();
+                  settings.setJavaScriptEnabled(true);
+                  settings.setAllowFileAccess(true);
+                  settings.setDomStorageEnabled(true);
+
+                  webView.addJavascriptInterface(new WebNotificationBridge(this), "AndroidNotif");
+                  webView.setWebViewClient(new WebViewClient());
+                  webView.loadUrl("file:///android_asset/app2.html");
+
+                  createNotificationChannel();
               }
-              
-              public static class NotifReceiver extends android.content.BroadcastReceiver {
+
+              private void createNotificationChannel() {
+                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                      NotificationChannel channel = new NotificationChannel(
+                              "BIBLE_CHANNEL", "Bible Notifications", NotificationManager.IMPORTANCE_DEFAULT);
+                      NotificationManager manager = getSystemService(NotificationManager.class);
+                      if (manager != null) {
+                          manager.createNotificationChannel(channel);
+                      }
+                  }
+              }
+
+              public class WebNotificationBridge {
+                  Context mContext;
+                  WebNotificationBridge(Context c) { mContext = c; }
+
+                  @JavascriptInterface
+                  public void scheduleNotif(int id, int hour, int minute, String title, String message) {
+                      Intent intent = new Intent(mContext, NotifReceiver.class);
+                      intent.setAction("BIBLE_NOTIF");
+                      intent.putExtra("id", id);
+                      intent.putExtra("title", title);
+                      intent.putExtra("message", message);
+
+                      PendingIntent pi = PendingIntent.getBroadcast(
+                              mContext, id, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+                      
+                      AlarmManager am = (AlarmManager) mContext.getSystemService(Context.ALARM_SERVICE);
+                      Calendar calendar = Calendar.getInstance();
+                      calendar.set(Calendar.HOUR_OF_DAY, hour);
+                      calendar.set(Calendar.MINUTE, minute);
+                      calendar.set(Calendar.SECOND, 0);
+
+                      if (calendar.before(Calendar.getInstance())) {
+                          calendar.add(Calendar.DATE, 1);
+                      }
+
+                      if (am != null) {
+                          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                              am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis(), pi);
+                          } else {
+                              am.setExact(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis(), pi);
+                          }
+                      }
+                  }
+              }
+
+              public static class NotifReceiver extends BroadcastReceiver {
                   @Override
-                  public void onReceive(android.content.Context context, android.content.Intent intent) {}
+                  public void onReceive(Context context, Intent intent) {
+                      int id = intent.getIntExtra("id", 0);
+                      String title = intent.getStringExtra("title");
+                      String message = intent.getStringExtra("message");
+
+                      NotificationCompat.Builder builder = new NotificationCompat.Builder(context, "BIBLE_CHANNEL")
+                              .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+                              .setContentTitle(title)
+                              .setContentText(message)
+                              .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                              .setAutoCancel(true);
+
+                      NotificationManager nm = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+                      if (nm != null) {
+                          nm.notify(id, builder.build());
+                      }
+                  }
               }
           }
           EOF
@@ -108,10 +200,6 @@ jobs:
           </script>
           </body>
           EOF
-          
-          # Added fallback to create a dummy app2.html if it's missing in your root directory during testing
-          if [ ! -f app2.html ]; then echo "<html><body>EW Study Bible Placeholder" > app2.html; fi
-          
           sed -i 's|</body>||g' app2.html
           cat app2.html script_bridge.js > app/src/main/assets/app2.html
           
@@ -121,7 +209,7 @@ jobs:
           done
 
       - name: Build APK
-        run: ./gradlew :app:assembleDebug -Pandroid.useAndroidX=true --stacktrace
+        run: gradle :app:assembleDebug -Pandroid.useAndroidX=true --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
