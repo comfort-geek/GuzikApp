@@ -21,9 +21,109 @@ jobs:
           gradle-version: '8.5'
           cache-disabled: true
 
-      - name: Copy Assets and Launcher Icons into App Module
+      - name: Inject Custom MainActivity Java Code
         run: |
-          # Ensure target asset and resource directories exist inside your existing app folder
+          # Completely overwrite MainActivity.java with your exact notification bridge setup
+          cat << 'EOF' > app/src/main/java/com/guzik/app/MainActivity.java
+          package com.guzik.app;
+
+          import android.app.Activity;
+          import android.app.AlarmManager;
+          import android.app.NotificationChannel;
+          import android.app.NotificationManager;
+          import android.app.PendingIntent;
+          import android.content.BroadcastReceiver;
+          import android.content.Context;
+          import android.content.Intent;
+          import android.content.IntentFilter;
+          import android.content.pm.PackageManager;
+          import android.os.Build;
+          import android.os.Bundle;
+          import android.view.WindowManager;
+          import android.webkit.JavascriptInterface;
+          import android.webkit.WebSettings;
+          import android.webkit.WebView;
+          import android.webkit.WebViewClient;
+          import android.widget.Toast;
+          import androidx.core.app.NotificationCompat;
+          import java.util.Calendar;
+
+          public class MainActivity extends Activity {
+              private WebView webView;
+              private long lastBack = 0;
+
+              // Receiver that shows the notification when alarm fires
+              public static class NotifReceiver extends BroadcastReceiver {
+                  @Override public void onReceive(Context ctx, Intent intent) {
+                      String title = intent.getStringExtra("title");
+                      String body = intent.getStringExtra("body");
+                      NotificationManager nm = (NotificationManager) ctx.getSystemService(Context.NOTIFICATION_SERVICE);
+                      if (Build.VERSION.SDK_INT >= 26) {
+                          nm.createNotificationChannel(new NotificationChannel("bible", "Bible Notifications", NotificationManager.IMPORTANCE_DEFAULT));
+                      }
+                      Intent open = new Intent(ctx, MainActivity.class);
+                      PendingIntent pi = PendingIntent.getActivity(ctx, 0, open, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+                      NotificationCompat.Builder b = new NotificationCompat.Builder(ctx, "bible")
+                          .setSmallIcon(android.R.drawable.ic_dialog_info)
+                          .setContentTitle(title).setContentText(body)
+                          .setContentIntent(pi).setAutoCancel(true);
+                      nm.notify((int)System.currentTimeMillis(), b.build());
+                  }
+              }
+
+              public class NotifBridge {
+                  @JavascriptInterface public void scheduleNotif(int id, int hour, int minute, String title, String body) {
+                      AlarmManager am = (AlarmManager) getSystemService(ALARM_SERVICE);
+                      Intent i = new Intent(MainActivity.this, NotifReceiver.class);
+                      i.putExtra("title", title); i.putExtra("body", body);
+                      PendingIntent pi = PendingIntent.getBroadcast(MainActivity.this, id, i, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+                      Calendar c = Calendar.getInstance();
+                      c.set(Calendar.HOUR_OF_DAY, hour); c.set(Calendar.MINUTE, minute); c.set(Calendar.SECOND, 0);
+                      if (c.getTimeInMillis() < System.currentTimeMillis()) c.add(Calendar.DAY_OF_YEAR, 1);
+                      am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, c.getTimeInMillis(), pi);
+                      runOnUiThread(() -> Toast.makeText(MainActivity.this, "Notification set: " + hour + ":" + minute, Toast.LENGTH_SHORT).show());
+                  }
+              }
+
+              @Override protected void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+                  getWindow().setFlags(WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED, WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED);
+                  // Ask notification permission on Android 13+
+                  if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                      requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, 1);
+                  }
+                  // Register receiver
+                  registerReceiver(new NotifReceiver(), new IntentFilter("BIBLE_NOTIF"), Context.RECEIVER_EXPORTED);
+                  webView = new WebView(this);
+                  setContentView(webView);
+                  WebSettings ws = webView.getSettings();
+                  ws.setJavaScriptEnabled(true);
+                  ws.setDomStorageEnabled(true);
+                  ws.setAllowFileAccess(true); ws.setAllowContentAccess(true);
+                  ws.setAllowFileAccessFromFileURLs(true); ws.setAllowUniversalAccessFromFileURLs(true);
+                  ws.setCacheMode(WebSettings.LOAD_DEFAULT);
+                  webView.addJavascriptInterface(new NotifBridge(), "AndroidNotif");
+                  webView.setWebViewClient(new WebViewClient());
+                  webView.loadUrl("file:///android_asset/app2.html");
+              }
+
+              @Override public void onBackPressed() {
+                  // FIX left-swipe closing: double-back to exit
+                  if (webView != null && webView.canGoBack()) {
+                      // If we are on Home, don't go back to blank - require double press
+                      if (System.currentTimeMillis() - lastBack < 2000) { super.onBackPressed(); }
+                      else { lastBack = System.currentTimeMillis(); Toast.makeText(this, "Press back again to exit", Toast.LENGTH_SHORT).show(); }
+                      return;
+                  }
+                  if (System.currentTimeMillis() - lastBack < 2000) { super.onBackPressed(); }
+                  else { lastBack = System.currentTimeMillis(); Toast.makeText(this, "Press back again to exit", Toast.LENGTH_SHORT).show(); }
+              }
+          }
+          EOF
+
+      - name: Copy Assets, Modify HTML with Javascript, and Inject Launcher Icons
+        run: |
+          # Create missing assets and mipmap folders inside your module structure
           mkdir -p app/src/main/assets/
           mkdir -p app/src/main/res/mipmap-mdpi/
           mkdir -p app/src/main/res/mipmap-hdpi/
@@ -31,13 +131,27 @@ jobs:
           mkdir -p app/src/main/res/mipmap-xxhdpi/
           mkdir -p app/src/main/res/mipmap-xxxhdpi/
 
-          # Copy your main HTML file from the root folder into the compilation assets
-          cp app2.html app/src/main/assets/app2.html
-          
-          # Inject the JavaScript notification bridge function right before the closing body tag
-          sed -i 's|</body>|<script>function saveNotifTimes(){ var vt = document.getElementById("nt-verse-time").value.split(":"); var rt = document.getElementById("nt-rem-time").value.split(":"); if(window.AndroidNotif){ AndroidNotif.scheduleNotif(1, parseInt(vt), parseInt(vt), "📖 Daily Verse", "Open EW Study Bible for todays verse"); AndroidNotif.scheduleNotif(2, parseInt(rt), parseInt(rt), "⏰ Bible Reminder", "Time to read your Bible"); } else { alert("In APK only - test after build"); } }</script></body>|g' app/src/main/assets/app2.html
+          # Create a pristine JavaScript insertion file to avoid regex parsing issues
+          cat << 'EOF' > inject.js
+          <script>
+          function saveNotifTimes(){
+            var vt = document.getElementById('nt-verse-time').value.split(':');
+            var rt = document.getElementById('nt-rem-time').value.split(':');
+            if(window.AndroidNotif){
+              AndroidNotif.scheduleNotif(1, parseInt(vt[0]), parseInt(vt[1]), "📖 Daily Verse", "Open EW Study Bible for today's verse");
+              AndroidNotif.scheduleNotif(2, parseInt(rt[0]), parseInt(rt[1]), "⏰ Bible Reminder", "Time to read your Bible");
+            } else { alert("In APK only - test after build"); }
+          }
+          </script>
+          </body>
+          EOF
 
-          # Copy your root icon.png cleanly into all targeted Android launcher densities
+          # Append your JS directly inside the body container layout
+          sed -i '/<\/body>/r inject.js' app2.html
+          sed -i '/<\/body>/d' app2.html
+          cp app2.html app/src/main/assets/app2.html
+
+          # Safely inject your icon across targeted densities
           if [ -f "icon.png" ]; then
               for folder in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
                   cp icon.png app/src/main/res/$folder/ic_launcher.png
