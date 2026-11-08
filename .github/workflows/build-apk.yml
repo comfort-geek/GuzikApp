@@ -217,8 +217,8 @@ jobs:
             var vt = document.getElementById('nt-verse-time').value.split(':');
             var rt = document.getElementById('nt-rem-time').value.split(':');
             if(window.AndroidNotif){
-              AndroidNotif.scheduleNotif(1, parseInt(vt[0]), parseInt(vt[1]), "📖 Daily Verse", "Open EW Study Bible for today's verse");
-              AndroidNotif.scheduleNotif(2, parseInt(rt[0]), parseInt(rt[1]), "⏰ Bible Reminder", "Time to read your Bible");
+              AndroidNotif.scheduleNotif(1, parseInt(vt), parseInt(vt), "📖 Daily Verse", "Open EW Study Bible for today's verse");
+              AndroidNotif.scheduleNotif(2, parseInt(rt), parseInt(rt), "⏰ Bible Reminder", "Time to read your Bible");
             } else { alert("In APK only - test after build"); }
           }
           </script>
