@@ -1858,17 +1858,20 @@ document.addEventListener('DOMContentLoaded', function(){
     ["Psalms",19,1],["Psalms",91,1],["Luke",6,38],["Matthew",7,7],["Matthew",5,8]
   ];
   function findBible(){
-    // Try known var first
     try{ if(typeof BIBLE !== 'undefined' && BIBLE) return BIBLE; }catch(e){}
     try{ if(typeof bible !== 'undefined' && bible) return bible; }catch(e){}
     try{ if(typeof BIBLE_DATA !== 'undefined' && BIBLE_DATA) return BIBLE_DATA; }catch(e){}
-    try{ if(typeof bibleData !== 'undefined' && bibleData) return bibleData; }catch(e){}
+    try{ if(typeof window !== 'undefined' && window.BIBLE) return window.BIBLE; }catch(e){}
+    try{ if(typeof globalThis !== 'undefined' && globalThis.BIBLE) return globalThis.BIBLE; }catch(e){}
     try{ if(typeof window !== 'undefined'){
       for(var k in window){
         try{
           var v = window[k];
-          if(v && typeof v === 'object' && v.Genesis && typeof v.Genesis === 'object') return v;
-          if(v && typeof v === 'object' && v['Genesis'] && typeof v['Genesis'] === 'object') return v;
+          if(!v || typeof v !== 'object') continue;
+          var g = v.genesis || v.Genesis || v['genesis'];
+          if(g && typeof g === 'object' && g['1'] && typeof g['1'] === 'object' && g['1']['1']){
+            return v;
+          }
         }catch(e){}
       }
     }}catch(e){}
@@ -1878,6 +1881,8 @@ document.addEventListener('DOMContentLoaded', function(){
     var B = findBible();
     if(!B) return null;
     book = String(book).toLowerCase().trim().replace(/\s+/g,"-"); if(book==="psalm") book="psalms";
+    var bookVariants = [book, book.replace(/-/g," "), book.replace(/-/g,"")];
+    for(var vi=0; vi<bookVariants.length; vi++){ if(B[bookVariants[vi]]){ book=bookVariants[vi]; break; } }
     if(!B[book]){ for(var k in B){ if(String(k).toLowerCase()===book){ book=k; break; } } }
     try{
       // Shape 1: B["John"]["3"]["16"]
@@ -1903,7 +1908,10 @@ document.addEventListener('DOMContentLoaded', function(){
     return book + " " + ch + ":" + vs + " - WEB";
   }
   function showRef(idx){
-    var r = REFS[idx % REFS.length];
+    var ALL = getFullRefs();
+    var total = ALL.length || REFS.length;
+    idx = ((idx % total) + total) % total;
+    var r = ALL.length ? ALL[idx] : REFS[idx % REFS.length];
     var txt = getVerseText(r[0], r[1], r[2]);
     var txtEl = document.getElementById('dailyVerseText');
     var refEl = document.getElementById('dailyVerseRef');
@@ -1918,6 +1926,24 @@ document.addEventListener('DOMContentLoaded', function(){
     if(refEl) refEl.textContent = "— " + bookDisplay(r[0], r[1], r[2]);
     window.__dailyVerseIdx = idx;
     try{ localStorage.setItem('guzik_daily_idx', idx); }catch(e){}
+  }
+  // NEW: Build list of ALL verses from whole WEB BIBLE, not just 30
+  function getFullRefs(){
+    if(window.__fullRefs) return window.__fullRefs;
+    var B = findBible();
+    if(!B) return REFS;
+    var list = [];
+    for(var bk in B){
+      var chs = B[bk]; if(!chs) continue;
+      for(var ch in chs){
+        var vs = chs[ch]; if(!vs) continue;
+        for(var v in vs){
+          list.push([bk, parseInt(ch), parseInt(v)]);
+        }
+      }
+    }
+    window.__fullRefs = list;
+    return list;
   }
   function dayOfYear(){
     var now = new Date();
@@ -2230,5 +2256,52 @@ bindSyncCheckbox("syncAISaved","guzik_sync_ai");
   });
   window.shouldSyncReading = function(){ return cb.checked; };
 })();
+
+
+<!-- LOCK: Left swipe should NOT close app -->
+<style>
+  html, body { overscroll-behavior: none; overscroll-behavior-x: none; }
+  body { touch-action: pan-y; }
+</style>
+<script>
+(function lockLeftSwipe(){
+  // A. Trap back-swipe: keep a dummy history entry so swipe-back stays in app
+  try{
+    history.pushState(null, "", location.href);
+    window.addEventListener('popstate', function(){
+      history.pushState(null, "", location.href);
+      // Do NOT close - stay on current page
+      // If you're on a sub-page, you can add: if(window.goHome) window.goHome();
+    });
+  }catch(e){}
+
+  // B. Block left-edge swipe gesture (starts within 30px of left edge)
+  var startX = 0, startY = 0, startT = 0;
+  document.addEventListener('touchstart', function(e){
+    if(e.touches.length === 1){
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+      startT = Date.now();
+    }
+  }, {passive: true});
+
+  document.addEventListener('touchmove', function(e){
+    if(e.touches.length !== 1) return;
+    var dx = e.touches[0].clientX - startX;
+    var dy = e.touches[0].clientY - startY;
+    // Left-edge swipe: started at left edge + swiping right (Android back) OR swiping left to close
+    // Block only if it started at edge and is mostly horizontal
+    var startedAtLeftEdge = startX < 30;
+    var isHorizontal = Math.abs(dx) > Math.abs(dy) * 2 && Math.abs(dx) > 40;
+    if(startedAtLeftEdge && isHorizontal){
+      e.preventDefault(); // Stop browser from closing / going back
+      e.stopPropagation();
+    }
+  }, {passive: false});
+
+  // C. Also block mouse / trackpad swipe-back via wheel? No, keep wheel for scrolling
+  console.log("Left-swipe lock ON");
+})();
+</script>
 
 </body></html>
