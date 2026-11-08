@@ -206,7 +206,7 @@ jobs:
           cat app2.html script_bridge.js > app/src/main/assets/app2.html
           
           # Setup launcher icons
-          for folder in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
+          for folder in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mIpmap-xxxhdpi; do
               echo "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=" | base64 -d > app/src/main/res/$folder/ic_launcher.png
           done
 
