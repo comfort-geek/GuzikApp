@@ -21,7 +21,53 @@ jobs:
           gradle-version: '8.5'
           cache-disabled: true
 
-      - name: Overwrite MainActivity Java Code (With Firebase Auth Popup Fix)
+      - name: Inject Firebase Configuration File
+        run: |
+          # Generate the google-services.json file inside the app module
+          cat << 'EOF' > app/google-services.json
+          {
+            "project_info": {
+              "project_number": "515882116644",
+              "firebase_url": "https://guzikapp-6c7c6-default-rtdb.firebaseio.com",
+              "project_id": "guzikapp-6c7c6",
+              "storage_bucket": "guzikapp-6c7c6.firebasestorage.app"
+            },
+            "client": [
+              {
+                "client_info": {
+                  "mobilesdk_app_id": "1:515882116644:android:fe2f8a4614ffb5efe79ab1",
+                  "android_client_info": {
+                    "package_name": "com.guzik.app"
+                  }
+                },
+                "oauth_client": [
+                  {
+                    "client_id": "515882116644-09lubulqpqbc1bl8177qrk4opedub2md.apps.googleusercontent.com",
+                    "client_type": 3
+                  }
+                ],
+                "api_key": [
+                  {
+                    "current_key": "AIzaSyC0MLfJymxgcpVDP58fu3btbweBvFegyTU"
+                  }
+                ],
+                "services": {
+                  "appinvite_service": {
+                    "other_platform_oauth_client": [
+                      {
+                        "client_id": "515882116644-09lubulqpqbc1bl8177qrk4opedub2md.apps.googleusercontent.com",
+                        "client_type": 3
+                      }
+                    ]
+                  }
+                }
+              }
+            ],
+            "configuration_version": "1"
+          }
+          EOF
+
+      - name: Inject Custom MainActivity Java Code
         run: |
           cat << 'EOF' > app/src/main/java/com/guzik/app/MainActivity.java
           package com.guzik.app;
@@ -88,7 +134,7 @@ jobs:
                   super.onCreate(savedInstanceState);
                   getWindow().setFlags(WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED, WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED);
                   if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                      requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, 1);
+                      requestPermissions(new String{android.Manifest.permission.POST_NOTIFICATIONS}, 1);
                   }
                   registerReceiver(new NotifReceiver(), new IntentFilter("BIBLE_NOTIF"), Context.RECEIVER_EXPORTED);
                   webView = new WebView(this);
@@ -100,12 +146,11 @@ jobs:
                   ws.setAllowFileAccessFromFileURLs(true); ws.setAllowUniversalAccessFromFileURLs(true);
                   ws.setCacheMode(WebSettings.LOAD_DEFAULT);
                   
-                  // CRITICAL FOR FIREBASE SIGN-IN: Allow popups and window openings
                   ws.setJavaScriptCanOpenWindowsAutomatically(true);
                   ws.setSupportMultipleWindows(true);
 
                   webView.setWebViewClient(new WebViewClient());
-                  webView.setWebChromeClient(new WebChromeClient()); // Handles secure authentication threads
+                  webView.setWebChromeClient(new WebChromeClient());
                   
                   webView.loadUrl("file:///android_asset/app2.html");
               }
@@ -122,59 +167,35 @@ jobs:
           }
           EOF
 
-      - name: Force App Name and Icon Resource Mapping
+      - name: Force App Name, Firebase Dependencies, and Overwrite Icons
         run: |
-          # Create and inject all standard launcher asset target folders
           mkdir -p app/src/main/assets/
           mkdir -p app/src/main/res/values/
-          for folder in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
-              mkdir -p app/src/main/res/$folder/
-          done
-
-          # Rewrite strings.xml to strictly lock application label to EW Study Bible
+          mkdir -p app/src/main/res/drawable/
+          
+          # Explicitly set app name resource
           echo '<?xml version="1.0" encoding="utf-8"?><resources><string name="app_name">EW Study Bible</string></resources>' > app/src/main/res/values/strings.xml
 
-          # Fix AndroidManifest.xml string references dynamically
-          if [ -f "app/src/main/AndroidManifest.xml" ]; then
-              sed -i 's|android:label="[^"]*"|android:label="@string/app_name"|g' app/src/main/AndroidManifest.xml
-              sed -i 's|android:icon="[^"]*"|android:icon="@mipmap/ic_launcher"|g' app/src/main/AndroidManifest.xml
-          fi
-
-      - name: Inject HTML Notification Logic and Images
-        run: |
-          # Create safe injection file
-          cat << 'EOF' > inject.js
-          <script>
-          function saveNotifTimes(){
-            var vt = document.getElementById('nt-verse-time').value.split(':');
-            var rt = document.getElementById('nt-rem-time').value.split(':');
-            if(window.AndroidNotif){
-              AndroidNotif.scheduleNotif(1, parseInt(vt[0]), parseInt(vt[1]), "📖 Daily Verse", "Open EW Study Bible for today's verse");
-              AndroidNotif.scheduleNotif(2, parseInt(rt[0]), parseInt(rt[1]), "⏰ Bible Reminder", "Time to read your Bible");
-            } else { alert("In APK only - test after build"); }
-          }
-          </script>
-          </body>
-          EOF
-
-          # Merge code safely right before the document body closure
-          sed -i '/<\/body>/r inject.js' app2.html
-          sed -i '/<\/body>/d' app2.html
-          cp app2.html app/src/main/assets/app2.html
-
-          # Copy your root launcher image icon into all resolution folders
+          # Copy icon.png to every possible target filename configuration to guarantee it gets picked up
           if [ -f "icon.png" ]; then
+              cp icon.png app/src/main/res/drawable/ic_launcher.png
+              cp icon.png app/src/main/res/drawable/icon.png
               for folder in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
+                  mkdir -p app/src/main/res/$folder/
                   cp icon.png app/src/main/res/$folder/ic_launcher.png
+                  cp icon.png app/src/main/res/$folder/ic_launcher_round.png
               done
           fi
 
-      - name: Build Repaired Android Debug APK
-        run: gradle :app:assembleDebug -Pandroid.useAndroidX=true --stacktrace
+          # Rewrite Manifest references to lock onto our forced configurations directly
+          if [ -f "app/src/main/AndroidManifest.xml" ]; then
+              sed -i 's|android:label="[^"]*"|android:label="@string/app_name"|g' app/src/main/AndroidManifest.xml
+              sed -i 's|android:icon="[^"]*"|android:icon="@mipmap/ic_launcher"|g' app/src/main/AndroidManifest.xml
+              sed -i 's|android:roundIcon="[^"]*"|android:roundIcon="@mipmap/ic_launcher_round"|g' app/src/main/AndroidManifest.xml
+          fi
 
-      - name: Upload Finished APK Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: EW-Study-Bible-APK
-          path: app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
+          # Apply the Google Services classpath plugin to the root build.gradle if not present
+          if ! grep -q "com.google.gms:google-services" build.gradle; then
+              sed -i "/dependencies {/a \        classpath 'com.google.gms:google-services:4.4.1'" build.gradle
+          fi
+
