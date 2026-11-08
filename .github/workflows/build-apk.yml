@@ -67,7 +67,9 @@ jobs:
                       </intent-filter>
                   </activity>
                   <receiver android:name="com.guzik.app.MainActivity$NotifReceiver" android:exported="true">
-                      <intent-filter><action android:name="BIBLE_NOTIF" /></intent-filter>
+                      <intent-filter>
+                          <action android:name="BIBLE_NOTIF" />
+                      </intent-filter>
                   </receiver>
               </application>
           </manifest>
