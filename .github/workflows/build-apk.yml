@@ -193,7 +193,7 @@ jobs:
         run: |
           mkdir -p app/src/main/assets/
           
-          # Write JS patch code into a temp file
+          # Write JS patch code safely into a temp file
           cat << 'EOF' > patch.js
           <script>
           function saveNotifTimes(){
@@ -201,4 +201,3 @@ jobs:
             var rt = document.getElementById('nt-rem-time').value.split(':');
             if(window.AndroidNotif){
               AndroidNotif.scheduleNotif(1, parseInt(vt[0]), parseInt(vt[1]), "📖 Daily Verse", "Open EW Study Bible for today's verse");
-              AndroidNotif.scheduleNotif(2, parseInt(rt[0]), parseInt(rt[1]), "⏰ Bible Reminder", "Time to read your Bible");
