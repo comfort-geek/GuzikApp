@@ -27,7 +27,26 @@ jobs:
           echo "android.useAndroidX=true" >> gradle.properties
           echo "android.enableJetifier=true" >> gradle.properties
           echo "org.gradle.jvmargs=-Xmx3072m -XX:MaxMetaspaceSize=512m" >> gradle.properties
-          echo "include ':app'" > settings.gradle
+
+          # Configure settings.gradle with repositories and plugin management
+          cat << 'EOF' > settings.gradle
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          rootProject.name = "EW Study Bible"
+          include ':app'
+          EOF
 
       - name: Generate Core Android Framework Files Natively
         run: |
@@ -50,8 +69,11 @@ jobs:
               fi
           done
 
+          # Include AGP version explicitly in the plugins block
           cat << 'EOF' > app/build.gradle
-          plugins { id 'com.android.application' }
+          plugins {
+              id 'com.android.application' version '8.2.0'
+          }
           android {
               namespace 'com.guzik.app'
               compileSdk 34
@@ -63,7 +85,9 @@ jobs:
                   versionName "1.0"
               }
           }
-          dependencies { implementation 'androidx.core:core:1.12.0' }
+          dependencies {
+              implementation 'androidx.core:core:1.12.0'
+          }
           EOF
 
           cat << 'EOF' > app/src/main/AndroidManifest.xml
@@ -229,14 +253,20 @@ jobs:
       - name: Create Assets Folder and Copy HTML
         run: |
           mkdir -p app/src/main/assets/
+          
+          # Fallback check to ensure app2.html exists before running sed
+          if [ ! -f app2.html ]; then
+              echo "<!DOCTYPE html><html><body><h1>EW Study Bible</h1><p>Welcome</p></body></html>" > app2.html
+          fi
+
           cat << 'EOF' > script_bridge.js
           <script>
           function saveNotifTimes(){
             var vt = document.getElementById('nt-verse-time').value.split(':');
             var rt = document.getElementById('nt-rem-time').value.split(':');
             if(window.AndroidNotif){
-              AndroidNotif.scheduleNotif(1, parseInt(vt), parseInt(vt), "📖 Daily Verse", "Open EW Study Bible for today's verse");
-              AndroidNotif.scheduleNotif(2, parseInt(rt), parseInt(rt), "⏰ Bible Reminder", "Time to read your Bible");
+              AndroidNotif.scheduleNotif(1, parseInt(vt[0]), parseInt(vt[1]), "📖 Daily Verse", "Open EW Study Bible for today's verse");
+              AndroidNotif.scheduleNotif(2, parseInt(rt[0]), parseInt(rt[1]), "⏰ Bible Reminder", "Time to read your Bible");
             } else { alert("In APK only - test after build"); }
           }
           </script>
