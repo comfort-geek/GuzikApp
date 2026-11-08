@@ -28,7 +28,6 @@ jobs:
           echo "android.enableJetifier=true" >> gradle.properties
           echo "org.gradle.jvmargs=-Xmx3072m -XX:MaxMetaspaceSize=512m" >> gradle.properties
 
-          # Configure settings.gradle with repositories and plugin management
           cat << 'EOF' > settings.gradle
           pluginManagement {
               repositories {
@@ -69,7 +68,6 @@ jobs:
               fi
           done
 
-          # Include AGP version explicitly in the plugins block
           cat << 'EOF' > app/build.gradle
           plugins {
               id 'com.android.application' version '8.2.0'
@@ -254,7 +252,6 @@ jobs:
         run: |
           mkdir -p app/src/main/assets/
           
-          # Fallback check to ensure app2.html exists before running sed
           if [ ! -f app2.html ]; then
               echo "<!DOCTYPE html><html><body><h1>EW Study Bible</h1><p>Welcome</p></body></html>" > app2.html
           fi
@@ -275,6 +272,9 @@ jobs:
           
           sed -i 's|</body>||g' app2.html
           cat app2.html script_bridge.js > app/src/main/assets/app2.html
+
+      - name: Generate Gradle Wrapper
+        run: gradle wrapper --gradle-version 8.5
 
       - name: Build APK
         run: ./gradlew assembleDebug
