@@ -103,7 +103,6 @@ jobs:
               protected void onCreate(Bundle savedInstanceState) {
                   super.onCreate(savedInstanceState);
                   
-                  // Apply fullscreen immersive layout visibility settings flags
                   hideSystemUI();
 
                   webView = new WebView(this);
@@ -219,13 +218,15 @@ jobs:
             var rt = document.getElementById('nt-rem-time').value.split(':');
             if(window.AndroidNotif){
               AndroidNotif.scheduleNotif(1, parseInt(vt[0]), parseInt(vt[1]), "📖 Daily Verse", "Open EW Study Bible for today's verse");
-              AndroidNotif.scheduleNotif(2, parseInt(rt // Truncated block restored precisely below to clean layout operations
-          EOF
-          cat << 'EOF' >> script_bridge.js
-          [0]), parseInt(rt[1]), "⏰ Bible Reminder", "Time to read your Bible");
+              AndroidNotif.scheduleNotif(2, parseInt(rt[0]), parseInt(rt[1]), "⏰ Bible Reminder", "Time to read your Bible");
             } else { alert("In APK only - test after build"); }
           }
           </script>
           </body>
           EOF
+          
           sed -i 's|</body>||g' app2.html
+          cat app2.html script_bridge.js > app/src/main/assets/app2.html
+          
+          for folder in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
+              if [ -f icon.png ]; then
