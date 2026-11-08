@@ -8,27 +8,31 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-java@v4
+      - name: Set up Java
+        uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
-          java-version: '17'
-          cache: ''
+          distribution: temurin
+          java-version: 17
 
-      - uses: gradle/actions/setup-gradle@v3
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v3
         with:
-          gradle-version: '8.5'
-          cache-disabled: true
+          gradle-version: 8.5
 
-      - name: Inject AndroidX and Gradle Configurations
+      - name: Inject AndroidX and Gradle configurations
         run: |
-          echo "android.useAndroidX=true" >> gradle.properties
-          echo "android.enableJetifier=true" >> gradle.properties
-          echo "org.gradle.jvmargs=-Xmx3072m -XX:MaxMetaspaceSize=512m" >> gradle.properties
+          cat >> gradle.properties << 'EOF'
+          android.useAndroidX=true
+          android.enableJetifier=true
+          org.gradle.jvmargs=-Xmx3072m -XX:MaxMetaspaceSize=512m
+          EOF
 
-          cat << 'EOF' > settings.gradle
+          cat > settings.gradle << 'EOF'
           pluginManagement {
               repositories {
                   google()
@@ -36,6 +40,7 @@ jobs:
                   gradlePluginPortal()
               }
           }
+
           dependencyResolutionManagement {
               repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
               repositories {
@@ -43,38 +48,36 @@ jobs:
                   mavenCentral()
               }
           }
+
           rootProject.name = "EW Study Bible"
           include ':app'
           EOF
 
-      - name: Generate Core Android Framework Files Natively
-        run: |
-          mkdir -p app/src/main/java/com/guzik/app/
-          mkdir -p app/src/main/res/mipmap-{mdpi,hdpi,xhdpi,xxhdpi,xxxhdpi}
-          mkdir -p app/src/main/res/values
-
-          # Set App Name in strings.xml
-          cat << 'EOF' > app/src/main/res/values/strings.xml
-          <resources>
-              <string name="app_name">EW Study Bible</string>
-          </resources>
+          cat > build.gradle << 'EOF'
+          // Root build file.
+          // Repositories are centralized in settings.gradle.
           EOF
 
-          # Copy icon.png from root to all mipmap directories if it exists
-          for folder in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
-              if [ -f icon.png ]; then
-                  cp icon.png "app/src/main/res/$folder/ic_launcher.png"
-                  cp icon.png "app/src/main/res/$folder/ic_launcher_round.png"
-              fi
-          done
+      - name: Generate Android app files
+        run: |
+          mkdir -p app/src/main/java/com/guzik/app
+          mkdir -p app/src/main/res/mipmap-mdpi
+          mkdir -p app/src/main/res/mipmap-hdpi
+          mkdir -p app/src/main/res/mipmap-xhdpi
+          mkdir -p app/src/main/res/mipmap-xxhdpi
+          mkdir -p app/src/main/res/mipmap-xxxhdpi
+          mkdir -p app/src/main/res/values
+          mkdir -p app/src/main/assets
 
-          cat << 'EOF' > app/build.gradle
+          cat > app/build.gradle << 'EOF'
           plugins {
               id 'com.android.application' version '8.2.0'
           }
+
           android {
               namespace 'com.guzik.app'
               compileSdk 34
+
               defaultConfig {
                   applicationId "com.guzik.app"
                   minSdk 21
@@ -82,17 +85,43 @@ jobs:
                   versionCode 1
                   versionName "1.0"
               }
+
+              buildTypes {
+                  release {
+                      minifyEnabled false
+                  }
+              }
           }
+
           dependencies {
               implementation 'androidx.core:core:1.12.0'
           }
           EOF
 
-          cat << 'EOF' > app/src/main/AndroidManifest.xml
+          cat > app/src/main/res/values/strings.xml << 'EOF'
+          <resources>
+              <string name="app_name">EW Study Bible</string>
+          </resources>
+          EOF
+
+          if [ -f icon.png ]; then
+            for folder in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
+              cp icon.png "app/src/main/res/$folder/ic_launcher.png"
+              cp icon.png "app/src/main/res/$folder/ic_launcher_round.png"
+            done
+          else
+            echo "Warning: icon.png not found. Using Android default icon is not possible without a launcher icon resource."
+            exit 1
+          fi
+
+          cat > app/src/main/AndroidManifest.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
-          <manifest xmlns:android="http://android.com/apk/res/android">
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+              <uses-permission android:name="android.permission.INTERNET" />
               <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
               <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+
               <application
                   android:allowBackup="true"
                   android:hardwareAccelerated="true"
@@ -100,13 +129,21 @@ jobs:
                   android:icon="@mipmap/ic_launcher"
                   android:roundIcon="@mipmap/ic_launcher_round"
                   android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
-                  <activity android:name="com.guzik.app.MainActivity" android:exported="true">
+
+                  <activity
+                      android:name="com.guzik.app.MainActivity"
+                      android:exported="true">
+
                       <intent-filter>
                           <action android:name="android.intent.action.MAIN" />
                           <category android:name="android.intent.category.LAUNCHER" />
                       </intent-filter>
                   </activity>
-                  <receiver android:name="com.guzik.app.MainActivity$NotifReceiver" android:exported="true">
+
+                  <receiver
+                      android:name="com.guzik.app.MainActivity$NotifReceiver"
+                      android:exported="true">
+
                       <intent-filter>
                           <action android:name="BIBLE_NOTIF" />
                       </intent-filter>
@@ -115,7 +152,7 @@ jobs:
           </manifest>
           EOF
 
-          cat << 'EOF' > app/src/main/java/com/guzik/app/MainActivity.java
+          cat > app/src/main/java/com/guzik/app/MainActivity.java << 'EOF'
           package com.guzik.app;
 
           import android.app.Activity;
@@ -137,12 +174,13 @@ jobs:
           import java.util.Calendar;
 
           public class MainActivity extends Activity {
+
               private WebView webView;
 
               @Override
               protected void onCreate(Bundle savedInstanceState) {
                   super.onCreate(savedInstanceState);
-                  
+
                   hideSystemUI();
 
                   webView = new WebView(this);
@@ -169,12 +207,12 @@ jobs:
               private void hideSystemUI() {
                   if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
                       getWindow().getDecorView().setSystemUiVisibility(
-                          View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                          | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                          | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                          | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                          | View.SYSTEM_UI_FLAG_FULLSCREEN
-                          | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                              View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                                      | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                                      | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                                      | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                                      | View.SYSTEM_UI_FLAG_FULLSCREEN
+                                      | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
                       );
                   }
               }
@@ -182,8 +220,13 @@ jobs:
               private void createNotificationChannel() {
                   if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                       NotificationChannel channel = new NotificationChannel(
-                              "BIBLE_CHANNEL", "Bible Notifications", NotificationManager.IMPORTANCE_DEFAULT);
+                              "BIBLE_CHANNEL",
+                              "Bible Notifications",
+                              NotificationManager.IMPORTANCE_DEFAULT
+                      );
+
                       NotificationManager manager = getSystemService(NotificationManager.class);
+
                       if (manager != null) {
                           manager.createNotificationChannel(channel);
                       }
@@ -191,21 +234,37 @@ jobs:
               }
 
               public class WebNotificationBridge {
-                  Context mContext;
-                  WebNotificationBridge(Context c) { mContext = c; }
+
+                  private final Context context;
+
+                  WebNotificationBridge(Context context) {
+                      this.context = context;
+                  }
 
                   @JavascriptInterface
-                  public void scheduleNotif(int id, int hour, int minute, String title, String message) {
-                      Intent intent = new Intent(mContext, NotifReceiver.class);
+                  public void scheduleNotif(
+                          int id,
+                          int hour,
+                          int minute,
+                          String title,
+                          String message
+                  ) {
+                      Intent intent = new Intent(context, NotifReceiver.class);
                       intent.setAction("BIBLE_NOTIF");
                       intent.putExtra("id", id);
                       intent.putExtra("title", title);
                       intent.putExtra("message", message);
 
-                      PendingIntent pi = PendingIntent.getBroadcast(
-                              mContext, id, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-                      
-                      AlarmManager am = (AlarmManager) mContext.getSystemService(Context.ALARM_SERVICE);
+                      PendingIntent pendingIntent = PendingIntent.getBroadcast(
+                              context,
+                              id,
+                              intent,
+                              PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+                      );
+
+                      AlarmManager alarmManager =
+                              (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+
                       Calendar calendar = Calendar.getInstance();
                       calendar.set(Calendar.HOUR_OF_DAY, hour);
                       calendar.set(Calendar.MINUTE, minute);
@@ -215,71 +274,111 @@ jobs:
                           calendar.add(Calendar.DATE, 1);
                       }
 
-                      if (am != null) {
+                      if (alarmManager != null) {
                           if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                              am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis(), pi);
+                              alarmManager.setExactAndAllowWhileIdle(
+                                      AlarmManager.RTC_WAKEUP,
+                                      calendar.getTimeInMillis(),
+                                      pendingIntent
+                              );
                           } else {
-                              am.setExact(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis(), pi);
+                              alarmManager.setExact(
+                                      AlarmManager.RTC_WAKEUP,
+                                      calendar.getTimeInMillis(),
+                                      pendingIntent
+                              );
                           }
                       }
                   }
               }
 
               public static class NotifReceiver extends BroadcastReceiver {
+
                   @Override
                   public void onReceive(Context context, Intent intent) {
                       int id = intent.getIntExtra("id", 0);
                       String title = intent.getStringExtra("title");
                       String message = intent.getStringExtra("message");
 
-                      NotificationCompat.Builder builder = new NotificationCompat.Builder(context, "BIBLE_CHANNEL")
-                              .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
-                              .setContentTitle(title)
-                              .setContentText(message)
-                              .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-                              .setAutoCancel(true);
+                      NotificationCompat.Builder builder =
+                              new NotificationCompat.Builder(context, "BIBLE_CHANNEL")
+                                      .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+                                      .setContentTitle(title)
+                                      .setContentText(message)
+                                      .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                                      .setAutoCancel(true);
 
-                      NotificationManager nm = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
-                      if (nm != null) {
-                          nm.notify(id, builder.build());
+                      NotificationManager manager =
+                              (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+
+                      if (manager != null) {
+                          manager.notify(id, builder.build());
                       }
                   }
               }
           }
           EOF
 
-      - name: Create Assets Folder and Copy HTML
+      - name: Create assets and copy HTML
         run: |
-          mkdir -p app/src/main/assets/
-          
           if [ ! -f app2.html ]; then
-              echo "<!DOCTYPE html><html><body><h1>EW Study Bible</h1><p>Welcome</p></body></html>" > app2.html
+            cat > app2.html << 'EOF'
+          <!DOCTYPE html>
+          <html>
+          <head>
+              <meta charset="utf-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1">
+              <title>EW Study Bible</title>
+          </head>
+          <body>
+              <h1>EW Study Bible</h1>
+              <p>Welcome</p>
+          EOF
           fi
 
-          cat << 'EOF' > script_bridge.js
+          cat > script_bridge.js << 'EOF'
           <script>
-          function saveNotifTimes(){
-            var vt = document.getElementById('nt-verse-time').value.split(':');
-            var rt = document.getElementById('nt-rem-time').value.split(':');
-            if(window.AndroidNotif){
-              AndroidNotif.scheduleNotif(1, parseInt(vt[0]), parseInt(vt[1]), "📖 Daily Verse", "Open EW Study Bible for today's verse");
-              AndroidNotif.scheduleNotif(2, parseInt(rt[0]), parseInt(rt[1]), "⏰ Bible Reminder", "Time to read your Bible");
-            } else { alert("In APK only - test after build"); }
+          function saveNotifTimes() {
+              var verseTime = document.getElementById('nt-verse-time').value.split(':');
+              var reminderTime = document.getElementById('nt-rem-time').value.split(':');
+
+              if (window.AndroidNotif) {
+                  AndroidNotif.scheduleNotif(
+                      1,
+                      parseInt(verseTime[0]),
+                      parseInt(verseTime[1]),
+                      "Daily Verse",
+                      "Open EW Study Bible for today's verse"
+                  );
+
+                  AndroidNotif.scheduleNotif(
+                      2,
+                      parseInt(reminderTime[0]),
+                      parseInt(reminderTime[1]),
+                      "Bible Reminder",
+                      "Time to read your Bible"
+                  );
+              } else {
+                  alert("Notifications are available in the installed APK.");
+              }
           }
           </script>
           </body>
+          </html>
           EOF
-          
+
           sed -i 's|</body>||g' app2.html
+          sed -i 's|</html>||g' app2.html
+
           cat app2.html script_bridge.js > app/src/main/assets/app2.html
 
-      - name: Generate Gradle Wrapper
+      - name: Generate Gradle wrapper
         run: gradle wrapper --gradle-version 8.5
 
-      - name: Build APK
-        run: ./gradlew assembleDebug
+      - name: Build debug APK
+        run: ./gradlew assembleDebug --stacktrace
 
-      - name: Upload APK Artifact
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: app-debug
