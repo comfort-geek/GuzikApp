@@ -125,7 +125,6 @@ jobs:
               private WebView webView;
               private long lastBack = 0;
 
-              // Receiver that shows the notification when alarm fires
               public static class NotifReceiver extends BroadcastReceiver {
                   @Override public void onReceive(Context ctx, Intent intent) {
                       String title = intent.getStringExtra("title");
@@ -161,11 +160,9 @@ jobs:
               @Override protected void onCreate(Bundle savedInstanceState) {
                   super.onCreate(savedInstanceState);
                   getWindow().setFlags(WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED, WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED);
-                  // Ask notification permission on Android 13+
                   if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                       requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, 1);
                   }
-                  // Register receiver
                   registerReceiver(new NotifReceiver(), new IntentFilter("BIBLE_NOTIF"), Context.RECEIVER_EXPORTED);
                   webView = new WebView(this);
                   setContentView(webView);
@@ -181,7 +178,6 @@ jobs:
               }
 
               @Override public void onBackPressed() {
-                  // FIX left-swipe closing: double-back to exit
                   if (webView != null && webView.canGoBack()) {
                       if (System.currentTimeMillis() - lastBack < 2000) { super.onBackPressed(); }
                       else { lastBack = System.currentTimeMillis(); Toast.makeText(this, "Press back again to exit", Toast.LENGTH_SHORT).show(); }
@@ -204,3 +200,5 @@ jobs:
             var vt = document.getElementById('nt-verse-time').value.split(':');
             var rt = document.getElementById('nt-rem-time').value.split(':');
             if(window.AndroidNotif){
+              AndroidNotif.scheduleNotif(1, parseInt(vt[0]), parseInt(vt[1]), "📖 Daily Verse", "Open EW Study Bible for today's verse");
+              AndroidNotif.scheduleNotif(2, parseInt(rt[0]), parseInt(rt[1]), "⏰ Bible Reminder", "Time to read your Bible");
