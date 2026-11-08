@@ -21,9 +21,8 @@ jobs:
           gradle-version: '8.5'
           cache-disabled: true
 
-      - name: Inject Custom MainActivity Java Code
+      - name: Overwrite MainActivity Java Code (With Firebase Auth Popup Fix)
         run: |
-          # Completely overwrite MainActivity.java with your exact notification bridge setup
           cat << 'EOF' > app/src/main/java/com/guzik/app/MainActivity.java
           package com.guzik.app;
 
@@ -44,6 +43,7 @@ jobs:
           import android.webkit.WebSettings;
           import android.webkit.WebView;
           import android.webkit.WebViewClient;
+          import android.webkit.WebChromeClient;
           import android.widget.Toast;
           import androidx.core.app.NotificationCompat;
           import java.util.Calendar;
@@ -52,7 +52,6 @@ jobs:
               private WebView webView;
               private long lastBack = 0;
 
-              // Receiver that shows the notification when alarm fires
               public static class NotifReceiver extends BroadcastReceiver {
                   @Override public void onReceive(Context ctx, Intent intent) {
                       String title = intent.getStringExtra("title");
@@ -88,11 +87,9 @@ jobs:
               @Override protected void onCreate(Bundle savedInstanceState) {
                   super.onCreate(savedInstanceState);
                   getWindow().setFlags(WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED, WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED);
-                  // Ask notification permission on Android 13+
                   if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                       requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, 1);
                   }
-                  // Register receiver
                   registerReceiver(new NotifReceiver(), new IntentFilter("BIBLE_NOTIF"), Context.RECEIVER_EXPORTED);
                   webView = new WebView(this);
                   setContentView(webView);
@@ -102,15 +99,19 @@ jobs:
                   ws.setAllowFileAccess(true); ws.setAllowContentAccess(true);
                   ws.setAllowFileAccessFromFileURLs(true); ws.setAllowUniversalAccessFromFileURLs(true);
                   ws.setCacheMode(WebSettings.LOAD_DEFAULT);
-                  webView.addJavascriptInterface(new NotifBridge(), "AndroidNotif");
+                  
+                  // CRITICAL FOR FIREBASE SIGN-IN: Allow popups and window openings
+                  ws.setJavaScriptCanOpenWindowsAutomatically(true);
+                  ws.setSupportMultipleWindows(true);
+
                   webView.setWebViewClient(new WebViewClient());
+                  webView.setWebChromeClient(new WebChromeClient()); // Handles secure authentication threads
+                  
                   webView.loadUrl("file:///android_asset/app2.html");
               }
 
               @Override public void onBackPressed() {
-                  // FIX left-swipe closing: double-back to exit
                   if (webView != null && webView.canGoBack()) {
-                      // If we are on Home, don't go back to blank - require double press
                       if (System.currentTimeMillis() - lastBack < 2000) { super.onBackPressed(); }
                       else { lastBack = System.currentTimeMillis(); Toast.makeText(this, "Press back again to exit", Toast.LENGTH_SHORT).show(); }
                       return;
@@ -121,17 +122,27 @@ jobs:
           }
           EOF
 
-      - name: Copy Assets, Modify HTML with Javascript, and Inject Launcher Icons
+      - name: Force App Name and Icon Resource Mapping
         run: |
-          # Create missing assets and mipmap folders inside your module structure
+          # Create and inject all standard launcher asset target folders
           mkdir -p app/src/main/assets/
-          mkdir -p app/src/main/res/mipmap-mdpi/
-          mkdir -p app/src/main/res/mipmap-hdpi/
-          mkdir -p app/src/main/res/mipmap-xhdpi/
-          mkdir -p app/src/main/res/mipmap-xxhdpi/
-          mkdir -p app/src/main/res/mipmap-xxxhdpi/
+          mkdir -p app/src/main/res/values/
+          for folder in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
+              mkdir -p app/src/main/res/$folder/
+          done
 
-          # Create a pristine JavaScript insertion file to avoid regex parsing issues
+          # Rewrite strings.xml to strictly lock application label to EW Study Bible
+          echo '<?xml version="1.0" encoding="utf-8"?><resources><string name="app_name">EW Study Bible</string></resources>' > app/src/main/res/values/strings.xml
+
+          # Fix AndroidManifest.xml string references dynamically
+          if [ -f "app/src/main/AndroidManifest.xml" ]; then
+              sed -i 's|android:label="[^"]*"|android:label="@string/app_name"|g' app/src/main/AndroidManifest.xml
+              sed -i 's|android:icon="[^"]*"|android:icon="@mipmap/ic_launcher"|g' app/src/main/AndroidManifest.xml
+          fi
+
+      - name: Inject HTML Notification Logic and Images
+        run: |
+          # Create safe injection file
           cat << 'EOF' > inject.js
           <script>
           function saveNotifTimes(){
@@ -146,23 +157,19 @@ jobs:
           </body>
           EOF
 
-          # Append your JS directly inside the body container layout
+          # Merge code safely right before the document body closure
           sed -i '/<\/body>/r inject.js' app2.html
           sed -i '/<\/body>/d' app2.html
           cp app2.html app/src/main/assets/app2.html
 
-          # Safely inject your icon across targeted densities
+          # Copy your root launcher image icon into all resolution folders
           if [ -f "icon.png" ]; then
               for folder in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
                   cp icon.png app/src/main/res/$folder/ic_launcher.png
               done
-          else
-              for folder in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
-                  echo "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=" | base64 -d > app/src/main/res/$folder/ic_launcher.png
-              done
           fi
 
-      - name: Build Android Debug APK
+      - name: Build Repaired Android Debug APK
         run: gradle :app:assembleDebug -Pandroid.useAndroidX=true --stacktrace
 
       - name: Upload Finished APK Artifact
