@@ -26,10 +26,11 @@ jobs:
           echo "android.useAndroidX=true" >> gradle.properties
           echo "android.enableJetifier=true" >> gradle.properties
           echo "org.gradle.jvmargs=-Xmx3072m -XX:MaxMetaspaceSize=512m" >> gradle.properties
+          echo "include ':app'" > settings.gradle
 
       - name: Generate Core Android Framework Files Natively
         run: |
-          # 1. Create directory paths for Manifest, Source code, build files, and launcher icons
+          # 1. Create directory paths for components
           mkdir -p app/src/main/
           mkdir -p app/src/main/java/com/guzik/app/
           mkdir -p app/src/main/res/mipmap-mdpi/
@@ -38,7 +39,7 @@ jobs:
           mkdir -p app/src/main/res/mipmap-xxhdpi/
           mkdir -p app/src/main/res/mipmap-xxxhdpi/
 
-          # 2. Generate a valid module-level build.gradle file
+          # 2. Generate module-level build.gradle with AndroidX Core dependencies
           cat << 'EOF' > app/build.gradle
           plugins {
               id 'com.android.application'
@@ -54,96 +55,152 @@ jobs:
                   versionName "1.0"
               }
           }
+          dependencies {
+              implementation 'androidx.core:core:1.12.0'
+          }
           EOF
 
-          # 3. Write a validated AndroidManifest.xml using corrected Base64 encoding (Updated App Name and Icon reference)
-          echo "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4KPG1hbmlmZXN0IHhtbG5zOmFuZHJvaWQ9Imh0dHA6Ly9zY2hlbWFzLmFuZHJvaWQuY29tL2Fway9yZXMvYW5kcm9pZCI+CiAgICA8YXBwbGljYXRpb24KICAgICAgICBhbmRyb2lkOmFsbG93QmFja3VwPSJ0cnVlIgogICAgICAgIGFuZHJvaWQ6aGFyZHdhcmVBY2NlbGVyYXRlZD0idHJ1ZSIKICAgICAgICBhbmRyb2lkOmxhYmVsPSJFVyBTdHVkeSBCaWJsZSIKICAgICAgICBhbmRyb2lkOmljb249IkBtaXBtYXAvaWNfbGF1bmNoZXIiCiAgICAgICAgYW5kcm9pZDp0aGVtZT0iQHZhbHVlIj4KICAgICAgICA8YWN0aXZpdHkgCiAgICAgICAgICAgIGFuZHJvaWQ6bmFtZT0iY29tLmd1emlrLmFwcC5NYWluQWN0aXZpdHkiCiAgICAgICAgICAgIGFuZHJvaWQ6ZXhwb3J0ZWQ9InRydWUiPgogICAgICAgICAgICA8aW50ZW50LWZpbHRlcj4KICAgICAgICAgICAgICAgIDxhY3Rpb24gYW5kcm9pZDpuYW1lPSJhbmRyb2lkLmludGVudC5hY3Rpb24uTUFJTiIgLz4KICAgICAgICAgICAgICAgIDxjYXRlZ29yeSBhbmRyb2lkOm5hbWU9ImFuZHJvaWQuaW50ZW50LmNhdGVnb3J5LkxBVU5DSEVSIiAvPgogICAgICAgICAgICA8L2ludGVudC1maWx0ZXI+CiAgICAgICAgPC9hY3Rpdml0eT4KICAgIDwvYXBwbGljYXRpb24+CjwvbWFuaWZlc3Q+" | base64 -d > app/src/main/AndroidManifest.xml
-          
-          # Inject the native theme parameter explicitly into the XML
-          sed -i 's|@value|@android:style/Theme.DeviceDefault.NoActionBar|g' app/src/main/AndroidManifest.xml
+          # 3. Generate AndroidManifest.xml with necessary permissions and receivers
+          cat << 'EOF' > app/src/main/AndroidManifest.xml
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://android.com">
+              
+              <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+              <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
 
-          # 4. Write pure native MainActivity.java (Splash screen removed, hardware processing maximized)
+              <application
+                  android:allowBackup="true"
+                  android:hardwareAccelerated="true"
+                  android:label="EW Study Bible"
+                  android:icon="@mipmap/ic_launcher"
+                  android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
+                  
+                  <activity 
+                      android:name="com.guzik.app.MainActivity"
+                      android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+
+                  <receiver 
+                      android:name="com.guzik.app.MainActivity$NotifReceiver"
+                      android:exported="true">
+                      <intent-filter>
+                          <action android:name="BIBLE_NOTIF" />
+                      </intent-filter>
+                  </receiver>
+                  
+              </application>
+          </manifest>
+          EOF
+
+          # 4. Write the advanced Notification and JavaScript Bridge enabled MainActivity.java
           cat << 'EOF' > app/src/main/java/com/guzik/app/MainActivity.java
           package com.guzik.app;
 
           import android.app.Activity;
+          import android.app.AlarmManager;
+          import android.app.NotificationChannel;
+          import android.app.NotificationManager;
+          import android.app.PendingIntent;
+          import android.content.BroadcastReceiver;
+          import android.content.Context;
+          import android.content.Intent;
+          import android.content.IntentFilter;
+          import android.content.pm.PackageManager;
+          import android.os.Build;
           import android.os.Bundle;
-          import android.view.View;
           import android.view.WindowManager;
+          import android.webkit.JavascriptInterface;
           import android.webkit.WebSettings;
           import android.webkit.WebView;
           import android.webkit.WebViewClient;
+          import android.widget.Toast;
+          import androidx.core.app.NotificationCompat;
+          import java.util.Calendar;
 
           public class MainActivity extends Activity {
               private WebView webView;
+              private long lastBack = 0;
 
-              @Override
-              protected void onCreate(Bundle savedInstanceState) {
+              // Receiver that shows the notification when alarm fires
+              public static class NotifReceiver extends BroadcastReceiver {
+                  @Override public void onReceive(Context ctx, Intent intent) {
+                      String title = intent.getStringExtra("title");
+                      String body = intent.getStringExtra("body");
+                      NotificationManager nm = (NotificationManager) ctx.getSystemService(Context.NOTIFICATION_SERVICE);
+                      if (Build.VERSION.SDK_INT >= 26) {
+                          nm.createNotificationChannel(new NotificationChannel("bible", "Bible Notifications", NotificationManager.IMPORTANCE_DEFAULT));
+                      }
+                      Intent open = new Intent(ctx, MainActivity.class);
+                      PendingIntent pi = PendingIntent.getActivity(ctx, 0, open, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+                      NotificationCompat.Builder b = new NotificationCompat.Builder(ctx, "bible")
+                          .setSmallIcon(android.R.drawable.ic_dialog_info)
+                          .setContentTitle(title).setContentText(body)
+                          .setContentIntent(pi).setAutoCancel(true);
+                      nm.notify((int)System.currentTimeMillis(), b.build());
+                  }
+              }
+
+              public class NotifBridge {
+                  @JavascriptInterface public void scheduleNotif(int id, int hour, int minute, String title, String body) {
+                      AlarmManager am = (AlarmManager) getSystemService(ALARM_SERVICE);
+                      Intent i = new Intent(MainActivity.this, NotifReceiver.class);
+                      i.putExtra("title", title); i.putExtra("body", body);
+                      PendingIntent pi = PendingIntent.getBroadcast(MainActivity.this, id, i, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+                      Calendar c = Calendar.getInstance();
+                      c.set(Calendar.HOUR_OF_DAY, hour); c.set(Calendar.MINUTE, minute); c.set(Calendar.SECOND, 0);
+                      if (c.getTimeInMillis() < System.currentTimeMillis()) c.add(Calendar.DAY_OF_YEAR, 1);
+                      am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, c.getTimeInMillis(), pi);
+                      runOnUiThread(() -> Toast.makeText(MainActivity.this, "Notification set: " + hour + ":" + minute, Toast.LENGTH_SHORT).show());
+                  }
+              }
+
+              @Override protected void onCreate(Bundle savedInstanceState) {
                   super.onCreate(savedInstanceState);
-
-                  // Force peak hardware rendering optimization immediately on startup
-                  getWindow().setFlags(
-                      WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
-                      WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED
-                  );
-
-                  // Instantiate WebView immediately as the absolute root view for instantaneous launch
+                  getWindow().setFlags(WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED, WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED);
+                  // Ask notification permission on Android 13+
+                  if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                      requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, 1);
+                  }
+                  // Register receiver
+                  registerReceiver(new NotifReceiver(), new IntentFilter("BIBLE_NOTIF"), Context.RECEIVER_EXPORTED);
                   webView = new WebView(this);
                   setContentView(webView);
-
                   WebSettings ws = webView.getSettings();
                   ws.setJavaScriptEnabled(true);
                   ws.setDomStorageEnabled(true);
-                  
-                  // Local file permissions required for smooth loading of heavy assets
-                  ws.setAllowFileAccess(true);
-                  ws.setAllowContentAccess(true);
-                  ws.setAllowFileAccessFromFileURLs(true);
-                  ws.setAllowUniversalAccessFromFileURLs(true);
-                  
-                  // Maximum system processing tweaks for high-priority local storage threads
+                  ws.setAllowFileAccess(true); ws.setAllowContentAccess(true);
+                  ws.setAllowFileAccessFromFileURLs(true); ws.setAllowUniversalAccessFromFileURLs(true);
                   ws.setCacheMode(WebSettings.LOAD_DEFAULT);
-                  ws.setRenderPriority(WebSettings.RenderPriority.HIGH);
-
+                  webView.addJavascriptInterface(new NotifBridge(), "AndroidNotif");
                   webView.setWebViewClient(new WebViewClient());
                   webView.loadUrl("file:///android_asset/app2.html");
               }
 
-              @Override
-              public void onBackPressed() {
+              @Override public void onBackPressed() {
+                  // FIX left-swipe closing: double-back to exit
                   if (webView != null && webView.canGoBack()) {
-                      webView.goBack();
-                  } else {
-                      super.onBackPressed();
+                      if (System.currentTimeMillis() - lastBack < 2000) { super.onBackPressed(); }
+                      else { lastBack = System.currentTimeMillis(); Toast.makeText(this, "Press back again to exit", Toast.LENGTH_SHORT).show(); }
+                      return;
                   }
+                  if (System.currentTimeMillis() - lastBack < 2000) { super.onBackPressed(); }
+                  else { lastBack = System.currentTimeMillis(); Toast.makeText(this, "Press back again to exit", Toast.LENGTH_SHORT).show(); }
               }
           }
           EOF
 
-      - name: Create Assets Folder and Copy HTML
+      - name: Create Assets Folder and Copy/Modify HTML
         run: |
           mkdir -p app/src/main/assets/
-          cp app2.html app/src/main/assets/app2.html
-          echo "Copied asset layout folder structures directly."
-
-          # Copy icon.png safely across all target Android density subdirectories
-          if [ -f "icon.png" ]; then
-              echo "icon.png found at root folder. Injecting app launcher icons..."
-              for folder in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
-                  cp icon.png app/src/main/res/$folder/ic_launcher.png
-              done
-          else
-              echo "Warning: icon.png not found at root repository path. Deploying fallback resource."
-              for folder in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
-                  echo "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=" | base64 -d > app/src/main/res/$folder/ic_launcher.png
-              done
-          fi
-
-      - name: Build APK
-        run: gradle :app:assembleDebug -Pandroid.useAndroidX=true --stacktrace
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: EW-Study-Bible-APK
-          path: app/build/outputs/apk/debug/app-debug.apk
+          
+          # Write JS patch code into a temp file
+          cat << 'EOF' > patch.js
+          <script>
+          function saveNotifTimes(){
+            var vt = document.getElementById('nt-verse-time').value.split(':');
+            var rt = document.getElementById('nt-rem-time').value.split(':');
+            if(window.AndroidNotif){
