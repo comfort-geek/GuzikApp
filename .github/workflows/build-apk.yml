@@ -175,6 +175,13 @@ jobs:
           import android.webkit.WebSettings;
           import android.webkit.WebView;
           import android.webkit.WebViewClient;
+import android.Manifest;
+import android.content.pm.PackageManager;
+import android.view.GestureDetector;
+import android.view.MotionEvent;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
+import androidx.core.view.WindowInsetsControllerCompat;
           import androidx.annotation.NonNull;
           import androidx.core.app.NotificationCompat;
 
@@ -186,8 +193,7 @@ jobs:
           import com.google.android.gms.tasks.OnCompleteListener;
           import com.google.android.gms.tasks.Task;
           import com.google.firebase.auth.AuthCredential;
-          import com.google.firebase.auth.AuthResult;
-          import com.google.firebase.auth.FirebaseAuth;
+          import com.google.firebase.auth.AuthResult;          import com.google.firebase.auth.FirebaseAuth;
           import com.google.firebase.auth.FirebaseUser;
           import com.google.firebase.auth.GoogleAuthProvider;
 
@@ -198,16 +204,28 @@ jobs:
               private static final int RC_SIGN_IN = 9001;
 
               private WebView webView;
+private GestureDetector gestureDetector;
+private boolean fullscreenEnabled = false;
               private GoogleSignInClient googleSignInClient;
               private FirebaseAuth firebaseAuth;
 
               @Override
               protected void onCreate(Bundle savedInstanceState) {
                   super.onCreate(savedInstanceState);
-
-                  hideSystemUI();
-
                   webView = new WebView(this);
+
+gestureDetector = new GestureDetector(this, new GestureDetector.SimpleOnGestureListener() {
+    @Override
+    public boolean onDoubleTap(MotionEvent e) {
+        toggleFullscreen();
+        return true;
+    }
+});
+
+webView.setOnTouchListener((v, event) -> {
+    gestureDetector.onTouchEvent(event);
+    return false;
+});
                   setContentView(webView);
 
                   WebSettings settings = webView.getSettings();
@@ -232,12 +250,22 @@ jobs:
                   webView.loadUrl("file:///android_asset/app2.html");
 
                   createNotificationChannel();
+
+if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+    if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
+            != PackageManager.PERMISSION_GRANTED) {
+
+        requestPermissions(
+                new String[]{Manifest.permission.POST_NOTIFICATIONS},
+                1001
+        );
+    }
+}
               }
 
               @Override
               protected void onResume() {
                   super.onResume();
-                  hideSystemUI();
               }
 
               @Override
@@ -272,8 +300,8 @@ jobs:
 
                                           if (user != null) {
                                               String email = user.getEmail() == null
-                                                      ? ""
-                                                      : user.getEmail();
+ ? ""
+ : user.getEmail();
 
                                               sendLoginSuccess(email, user.getUid());
                                           } else {
@@ -301,8 +329,7 @@ jobs:
                   webView.post(new Runnable() {
                       @Override
                       public void run() {
-                          webView.evaluateJavascript(
-                                  "window.androidLoginSuccess('" + safeEmail + "', '" + safeUid + "');",
+                          webView.evaluateJavascript(                                  "window.androidLoginSuccess('" + safeEmail + "', '" + safeUid + "');",
                                   null
                           );
                       }
@@ -315,8 +342,7 @@ jobs:
                   webView.post(new Runnable() {
                       @Override
                       public void run() {
-                          webView.evaluateJavascript(
-                                  "window.androidLoginError('" + safeMessage + "');",
+                          webView.evaluateJavascript(                                  "window.androidLoginError('" + safeMessage + "');",
                                   null
                           );
                       }
@@ -333,17 +359,43 @@ jobs:
                           .replace("'", "\\'");
               }
 
-              private void hideSystemUI() {
-                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-                      getWindow().getDecorView().setSystemUiVisibility(
-                              View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                                      | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                                      | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                                      | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                                      | View.SYSTEM_UI_FLAG_FULLSCREEN
-                                      | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-                      );
-                  }
+
+private void hideSystemUI() {
+    WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
+
+    WindowInsetsControllerCompat controller =
+            WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
+
+    if (controller != null) {
+        controller.hide(WindowInsetsCompat.Type.systemBars());
+        controller.setSystemBarsBehavior(
+                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        );
+
+        fullscreenEnabled = true;
+    }
+}
+
+private void showSystemUI() {
+    WindowCompat.setDecorFitsSystemWindows(getWindow(), true);
+
+    WindowInsetsControllerCompat controller =
+            WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
+
+    if (controller != null) {
+        controller.show(WindowInsetsCompat.Type.systemBars());
+    }
+
+    fullscreenEnabled = false;
+}
+
+private void toggleFullscreen() {
+    if (fullscreenEnabled) {
+        showSystemUI();
+    } else {
+        hideSystemUI();
+    }
+}
               }
 
               private void createNotificationChannel() {
@@ -414,20 +466,34 @@ jobs:
                       }
 
                       if (alarmManager != null) {
-                          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                              alarmManager.setExactAndAllowWhileIdle(
-                                      AlarmManager.RTC_WAKEUP,
-                                      calendar.getTimeInMillis(),
-                                      pendingIntent
-                              );
-                          } else {
-                              alarmManager.setExact(
-                                      AlarmManager.RTC_WAKEUP,
-                                      calendar.getTimeInMillis(),
-                                      pendingIntent
-                              );
-                          }
-                      }
+    boolean canUseExactAlarm = true;
+
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        canUseExactAlarm = alarmManager.canScheduleExactAlarms();
+    }
+
+    if (canUseExactAlarm) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            alarmManager.setExactAndAllowWhileIdle(
+                    AlarmManager.RTC_WAKEUP,
+                    calendar.getTimeInMillis(),
+                    pendingIntent
+            );
+        } else {
+            alarmManager.setExact(
+                    AlarmManager.RTC_WAKEUP,
+                    calendar.getTimeInMillis(),
+                    pendingIntent
+            );
+        }
+    } else {
+        alarmManager.setAndAllowWhileIdle(
+                AlarmManager.RTC_WAKEUP,
+                calendar.getTimeInMillis(),
+                pendingIntent
+        );
+    }
+}
                   }
               }
 
@@ -501,7 +567,63 @@ jobs:
                   alert("Notifications are available in the installed APK.");
               }
           }
-          </script>
+
+function googleLogin() {
+    if (window.AndroidAuth && AndroidAuth.login) {
+        AndroidAuth.login();
+    } else {
+        alert("Native Google sign-in is not available.");
+    }
+}
+
+window.androidLoginSuccess = function(email, uid) {
+    localStorage.setItem("userEmail", email);
+    localStorage.setItem("userId", uid);
+    localStorage.setItem("loggedIn", "true");
+
+    if (typeof syncToCloud === "function") {
+        syncToCloud();
+    }
+
+    location.reload();
+};
+
+window.androidLoginError = function(message) {
+    alert("Google sign-in failed: " + message);
+};
+
+(function() {
+    function bindGoogleButton() {
+        var items = document.querySelectorAll(
+            "button, a, div[role='button'], span[role='button']"
+        );
+
+        for (var i = 0; i < items.length; i++) {
+            var item = items[i];
+            var text = (item.textContent || "").toLowerCase();
+
+            if (
+                text.indexOf("sign in with google") !== -1 ||
+                text.indexOf("google sign in") !== -1            ) {
+                item.addEventListener("click", function(event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    googleLogin();
+                }, true);
+            }
+        }
+    }
+
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", bindGoogleButton);
+    } else {
+        bindGoogleButton();
+    }
+
+    setTimeout(bindGoogleButton, 1000);
+})();
+
+</script>
           </body>
           </html>
           EOF
@@ -525,3 +647,4 @@ jobs:
         with:
           name: app-debug
           path: app/build/outputs/apk/debug/app-debug.apk
+          
