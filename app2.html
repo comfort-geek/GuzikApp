@@ -2183,12 +2183,37 @@ const rdb = firebase.database();
 // --- REMOVE OLD BEHAVIOR: override old functions ---
 async function doLogin(e){
   if(e){ e.preventDefault(); e.stopPropagation(); }
-  try{
-    const u = auth.currentUser;
-    if(u){ await syncToCloud(); return; }
-    await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
-  }catch(err){ alert("Sign-in error: " + err.message); }
+
+  const u = auth.currentUser;
+  if(u){
+    await syncToCloud();
+    return;
+  }
+
+  if(window.AndroidAuth && typeof AndroidAuth.login === "function"){
+    AndroidAuth.login();
+    return;
+  }
+
+  alert("Google sign-in is not available in this app version.");
 }
+
+window.androidLoginSuccess = async function(email, uid){
+  try{
+    localStorage.setItem("ew_user_email", email);
+    localStorage.setItem("ew_user_name", email);
+
+    await syncToCloud();
+    location.reload();
+  }catch(err){
+    alert("Sign-in error: " + err.message);
+  }
+};
+
+window.androidLoginError = function(message){
+  alert("Sign-in error: " + (message || "Unknown error"));
+};
+
 async function loginWithGmail(){ return doLogin(); } // old name now = Firebase
 async function logoutGmail(e){
   if(e){ e.preventDefault(); e.stopPropagation(); }
