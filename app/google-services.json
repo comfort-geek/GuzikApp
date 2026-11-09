@@ -15,6 +15,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "515882116644-v1mfe50puug5ntmiqgrsu7n6iio9qu14.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.guzik.app",
+            "certificate_hash": "413dc6183ecff08c99c7bbad9a59f75a34657665"
+          }
+        },
+        {
           "client_id": "515882116644-09lubulqpqbc1bl8177qrk4opedub2md.apps.googleusercontent.com",
           "client_type": 3
         }
