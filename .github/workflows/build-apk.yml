@@ -193,7 +193,8 @@ import androidx.core.view.WindowInsetsControllerCompat;
           import com.google.android.gms.tasks.OnCompleteListener;
           import com.google.android.gms.tasks.Task;
           import com.google.firebase.auth.AuthCredential;
-          import com.google.firebase.auth.AuthResult;          import com.google.firebase.auth.FirebaseAuth;
+          import com.google.firebase.auth.AuthResult;
+          import com.google.firebase.auth.FirebaseAuth;
           import com.google.firebase.auth.FirebaseUser;
           import com.google.firebase.auth.GoogleAuthProvider;
 
@@ -212,6 +213,7 @@ private boolean fullscreenEnabled = false;
               @Override
               protected void onCreate(Bundle savedInstanceState) {
                   super.onCreate(savedInstanceState);
+
                   webView = new WebView(this);
 
 gestureDetector = new GestureDetector(this, new GestureDetector.SimpleOnGestureListener() {
@@ -300,8 +302,8 @@ if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
 
                                           if (user != null) {
                                               String email = user.getEmail() == null
- ? ""
- : user.getEmail();
+                                                      ? ""
+                                                      : user.getEmail();
 
                                               sendLoginSuccess(email, user.getUid());
                                           } else {
@@ -329,7 +331,8 @@ if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                   webView.post(new Runnable() {
                       @Override
                       public void run() {
-                          webView.evaluateJavascript(                                  "window.androidLoginSuccess('" + safeEmail + "', '" + safeUid + "');",
+                          webView.evaluateJavascript(
+                                  "window.androidLoginSuccess('" + safeEmail + "', '" + safeUid + "');",
                                   null
                           );
                       }
@@ -342,7 +345,8 @@ if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                   webView.post(new Runnable() {
                       @Override
                       public void run() {
-                          webView.evaluateJavascript(                                  "window.androidLoginError('" + safeMessage + "');",
+                          webView.evaluateJavascript(
+                                  "window.androidLoginError('" + safeMessage + "');",
                                   null
                           );
                       }
@@ -359,7 +363,7 @@ if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                           .replace("'", "\\'");
               }
 
-
+              
 private void hideSystemUI() {
     WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
 
@@ -567,7 +571,7 @@ private void toggleFullscreen() {
                   alert("Notifications are available in the installed APK.");
               }
           }
-
+          
 function googleLogin() {
     if (window.AndroidAuth && AndroidAuth.login) {
         AndroidAuth.login();
@@ -604,7 +608,8 @@ window.androidLoginError = function(message) {
 
             if (
                 text.indexOf("sign in with google") !== -1 ||
-                text.indexOf("google sign in") !== -1            ) {
+                text.indexOf("google sign in") !== -1
+            ) {
                 item.addEventListener("click", function(event) {
                     event.preventDefault();
                     event.stopPropagation();
@@ -647,4 +652,3 @@ window.androidLoginError = function(message) {
         with:
           name: app-debug
           path: app/build/outputs/apk/debug/app-debug.apk
-          
