@@ -94,7 +94,16 @@ input#searchBox::placeholder{font-size:14px !important;font-weight:400 !importan
 <button id="aboutBtn">About</button><div class="set-row"><div id="loginSyncSection" onclick="doLogin(event)" style="margin:10px 0; background:#f8f8f8; border:1px solid #eee; border-radius:16px; padding:14px; cursor:pointer;" onclick="if(!localStorage.getItem('ew_user_email')) loginWithGmail();">
   <div id="loginLoggedOut"><b style="font-size:17px;">Login & Sync</b><p style="margin:4px 0 0 0; color:#666; font-size:13px;">Sign in to sync across devices</p><button id="loginBtn" onclick="doLogin(event)" style="margin:10px 0 0 0; width:100%; padding:12px; font-size:15px; font-weight:700; color:#fff; background:#0e7490; border:none; border-radius:12px; cursor:pointer;">Sign in with Google</button></div>
   <div id="loginLoggedIn" style="display:none;"><b style="font-size:17px;">Login & Sync</b><p style="margin:4px 0 0 0; color:#16a34a; font-size:12px;">● Synced just now</p><div style="margin-top:10px;"><span id="userEmail" style="font-size:12px; color:#666;"></span><br><button onclick="logoutGmail(event)" style="margin:10px 0 0 0; width:100%; padding:12px; font-size:15px; font-weight:700; color:#fff; background:#0e7490; border:none; border-radius:12px; cursor:pointer;">Sign out</button></div></div>
+  
   <hr style="margin:12px 0; border:none; border-top:1px solid #e5e5e5;">
+  <div><b style="font-size:17px;">🔔 Notifications</b>
+  <p style="margin:4px 0 0 0; color:#666; font-size:13px;">Daily verse & Bible reminder</p>
+  <label style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; font-size:14px;"><span>📖 Daily Verse time</span><input type="time" id="nt-verse-time" value="06:00" style="padding:6px; border-radius:8px; border:1px solid #ccc;"></label>
+  <label style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; font-size:14px;"><span>📖 Read Bible time</span><input type="time" id="nt-rem-time" value="20:00" style="padding:6px; border-radius:8px; border:1px solid #ccc;"></label>
+  <button onclick="saveNotifTimes(event)" style="margin:10px 0 0 0; width:100%; padding:12px; font-size:15px; font-weight:700; color:#fff; background:#0e7490; border:none; border-radius:12px; cursor:pointer;">Save Notification Times</button>
+  <p id="notifSavedMsg" style="display:none; color:#16a34a; font-size:13px; margin:6px 0 0 0;">✅ Saved - you will get notifications at those times</p>
+  </div>
+
 <label style="display:flex; justify-content:space-between; padding:6px 0; font-size:14px;"><span>📖 Sync Daily Verse</span><input type="checkbox" id="syncDailyVerse" checked onclick="event.stopPropagation()"></label>
 <label style="display:flex; justify-content:space-between; padding:6px 0; font-size:14px;"><span>🔤 Sync Font & Settings</span><input type="checkbox" id="syncFontSettings" checked onclick="event.stopPropagation()"></label>
 <label style="display:flex; justify-content:space-between; padding:6px 0; font-size:14px;"><span>✨ Sync AI Saved</span><input type="checkbox" id="syncAISaved" checked onclick="event.stopPropagation()"></label>
@@ -2079,21 +2088,68 @@ new MutationObserver(()=>tryInsertLogin()).observe(document.body, {childList:tru
 <script>
 function doLogin(e){
   if(e) e.stopPropagation();
-  try{
-    if(typeof loginWithGmail === 'function'){ loginWithGmail(); return; }
-  }catch(err){}
-  // Fallback: no Google function in this build, use email prompt
-  var email = prompt("Enter your Gmail to sync:");
-  if(!email) return;
-  email = email.trim();
-  if(!email.includes("@")){ alert("Please enter a valid email"); return; }
+  // DIRECT native bridge - no prompt, no loginWithGmail detour
+  if(window.AndroidAuth && typeof AndroidAuth.login === 'function'){
+    AndroidAuth.login();
+    return;
+  }
+  alert("Google sign-in not available - AndroidAuth bridge missing");
+}
+window.androidLoginSuccess = function(email, uid){
   try{
     localStorage.setItem('ew_user_email', email);
     localStorage.setItem('ew_user_name', email.split('@')[0]);
+    localStorage.setItem('ew_user_uid', uid || '');
   }catch(err){}
+  if(typeof updateLoginUI === 'function') updateLoginUI();
+  else {
+    var out = document.getElementById('loginLoggedOut');
+    var inn = document.getElementById('loginLoggedIn');
+    if(out) out.style.display='none';
+    if(inn) inn.style.display='block';
+    var em = document.getElementById('userEmail');
+    if(em) em.textContent = email;
+  }
   alert("Signed in as " + email);
-  updateLoginUI();
+};
+window.androidLoginError = function(msg){
+  alert("Sign-in failed: " + msg);
+};
+
+
+function saveNotifTimes(e){
+  if(e) e.stopPropagation();
+  var v = document.getElementById('nt-verse-time');
+  var r = document.getElementById('nt-rem-time');
+  if(!v || !r){ alert("Time inputs not found"); return; }
+  var vt = v.value.split(':');
+  var rt = r.value.split(':');
+  try{
+    localStorage.setItem('nt_verse_time', v.value);
+    localStorage.setItem('nt_rem_time', r.value);
+  }catch(err){}
+  if(window.AndroidNotif && typeof AndroidNotif.scheduleNotif === 'function'){
+    AndroidNotif.scheduleNotif(1, parseInt(vt[0]), parseInt(vt[1]), "Daily Verse", "Open EW Study Bible for today's verse");
+    AndroidNotif.scheduleNotif(2, parseInt(rt[0]), parseInt(rt[1]), "Bible Reminder", "Time to read your Bible");
+    var m = document.getElementById('notifSavedMsg');
+    if(m) m.style.display='block';
+    alert("Notifications saved: Daily Verse " + v.value + ", Read Bible " + r.value);
+  } else {
+    alert("Notifications are available in the installed APK. Times saved: " + v.value + " / " + r.value);
+  }
 }
+// Restore saved times on load
+(function(){
+  try{
+    var vt = localStorage.getItem('nt_verse_time');
+    var rt = localStorage.getItem('nt_rem_time');
+    var v = document.getElementById('nt-verse-time');
+    var r = document.getElementById('nt-rem-time');
+    if(vt && v) v.value = vt;
+    if(rt && r) r.value = rt;
+  }catch(e){}
+})();
+
 // On load, show logged-in state if we have email
 (function(){
   try{
