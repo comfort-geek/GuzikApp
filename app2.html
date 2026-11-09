@@ -84,7 +84,6 @@ input#searchBox::placeholder{font-size:14px !important;font-weight:400 !importan
 .cat{font-size:14px !important;font-weight:500 !important;padding:9px 12px !important;}
 .cat.active{font-weight:600 !important;}
 
-</style><script src="https://accounts.google.com/gsi/client" async defer></script>
 </head><body>
 <div id="app"><header><button id="menuBtn">☰</button>
 <button class="tab active" data-tab="home">Home</button><button class="tab" data-tab="bible">Bible</button><button class="tab" data-tab="search">Search</button>
@@ -2062,16 +2061,6 @@ function handleGoogleCredential(resp){
     if(typeof updateLoginUI === 'function') updateLoginUI();
   }catch(e){ alert("Sign-in error: " + e.message); }
 }
-function loginWithGmail(){
-  try{
-    if(typeof google === 'undefined' || !google.accounts || !google.accounts.id){
-      alert("Google library not loaded. You must open this via http://localhost - not via Files app (content:// blocks Google). See Termux instructions.");
-      return;
-    }
-    google.accounts.id.initialize({ client_id: "1003593841959-2g6gue2osi7u8dj94i51pco08621djpt.apps.googleusercontent.com", callback: handleGoogleCredential, auto_select: false });
-    google.accounts.id.prompt(function(n){ if(n && n.isNotDisplayed && n.isNotDisplayed()){ alert("Google popup blocked: " + (n.getNotDisplayedReason ? n.getNotDisplayedReason() : "unknown") + " - Use localhost in Chrome"); } });
-  }catch(e){ alert("Google login error: " + e.message + " - This happens on content:// / file:// - use localhost"); }
-}
 function logoutGmail(){ localStorage.removeItem('ew_user_email'); localStorage.removeItem('ew_user_name'); updateLoginUI(); }
 function updateLoginUI(){
   let email = localStorage.getItem('ew_user_email');
@@ -2086,15 +2075,6 @@ new MutationObserver(()=>tryInsertLogin()).observe(document.body, {childList:tru
 </script>
 
 <script>
-function doLogin(e){
-  if(e) e.stopPropagation();
-  // DIRECT native bridge - no prompt, no loginWithGmail detour
-  if(window.AndroidAuth && typeof AndroidAuth.login === 'function'){
-    AndroidAuth.login();
-    return;
-  }
-  alert("Google sign-in not available - AndroidAuth bridge missing");
-}
 window.androidLoginSuccess = function(email, uid){
   try{
     localStorage.setItem('ew_user_email', email);
@@ -2192,20 +2172,6 @@ function updateLoginUI(){
       if(inn) inn.style.display='none';
     }
   }catch(e){}
-}
-function doLogin(e){
-  if(e){ e.stopPropagation(); e.preventDefault(); }
-  try{ if(typeof loginWithGmail === 'function'){ loginWithGmail(); return; } }catch(err){}
-  var email = prompt("Enter your Gmail to sync:");
-  if(!email) return;
-  email = email.trim();
-  if(!email.includes("@")){ alert("Please enter a valid email"); return; }
-  try{
-    localStorage.setItem('ew_user_email', email);
-    localStorage.setItem('ew_user_name', email.split('@')[0]);
-  }catch(err){}
-  updateLoginUI();
-  // No reload, drawer stays open
 }
 function logoutGmail(e){
   if(e){ e.stopPropagation(); e.preventDefault(); }
