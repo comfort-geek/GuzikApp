@@ -94,10 +94,12 @@ jobs:
               }
           }
 
-          dependencies {
-             
-                            implementation platform('com.google.firebase:firebase-bom:33.1.2')
-              implementation 'com.google.firebase:firebase-auth'
+              dependencies {
+                    implementation 'androidx.core:core:1.12.0'
+
+                    implementation platform('com.google.firebase:firebase-bom:33.1.2')
+                    implementation 'com.google.firebase:firebase-auth'
+                    implementation 'com.google.android.gms:play-services-auth:21.2.0'
           }
           EOF
 
