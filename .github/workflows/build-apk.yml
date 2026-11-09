@@ -253,7 +253,7 @@ jobs:
                                           );
 
                                   firebaseAuth.signInWithCredential(credential)
-                                          .addOnCompleteListener(task -> {
+                                          .addOnCompleteListener(SignIntask -> {
                                               if (webView != null) {
                                                   webView.evaluateJavascript(
                                                           "if (window.onAuthChanged) { " +
