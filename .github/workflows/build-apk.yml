@@ -1,904 +1,183 @@
-name: Build EW Study Bible APK
-
+name: Build Bible App
 on:
   push:
     branches: [ main ]
   workflow_dispatch:
-
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Java
+      - uses: actions/checkout@v4
+      - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
-          distribution: temurin
-          java-version: 17
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v3
-        with:
-          gradle-version: 8.5
-
-      - name: Inject AndroidX and Gradle configurations
+          java-version: '17'
+          distribution: 'temurin'
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+      - name: Create Project
         run: |
-          cat >> gradle.properties << 'EOF'
-          android.useAndroidX=true
-          android.enableJetifier=true
-          org.gradle.jvmargs=-Xmx3072m -XX:MaxMetaspaceSize=512m
-          EOF
-
-          cat > settings.gradle << 'EOF'
-          pluginManagement {
-              repositories {
-                  google()
-                  mavenCentral()
-                  gradlePluginPortal()
-              }
-          }
-
-          dependencyResolutionManagement {
-              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-              repositories {
-                  google()
-                  mavenCentral()
-              }
-          }
-
-          rootProject.name = "EW Study Bible"
+          mkdir -p app/src/main/java/com/bible/app app/src/main/assets app/src/main/res/values app/src/main/res/mipmap-hdpi app/src/main/res/mipmap-mdpi app/src/main/res/mipmap-xhdpi app/src/main/res/mipmap-xxhdpi app/src/main/res/mipmap-xxxhdpi
+          ls -la
+          if [ -f app2.html ]; then cp app2.html app/src/main/assets/app2.html; echo "Copied app2.html"; fi
+          if [ -f app/src/main/assets/app2.html ]; then echo "app2.html OK"; else echo "MISSING app2.html"; exit 1; fi
+          if [ -f google-services.json ]; then cp google-services.json app/google-services.json; echo "Copied google-services.json"; fi
+          if [ -f app/google-services.json ]; then echo "google-services.json OK"; else echo "WARNING google-services.json missing"; fi
+          cat > settings.gradle <<'EOF'
+          pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
+          dependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS); repositories { google(); mavenCentral() } }
+          rootProject.name = "BibleApp"
           include ':app'
           EOF
-
-          cat > build.gradle << 'EOF'
-          // Root build file.
-          // Repositories are centralized in settings.gradle.
+          cat > build.gradle <<'EOF'
+          plugins { id 'com.android.application' version '8.7.2' apply false; id 'com.google.gms.google-services' version '4.4.2' apply false }
           EOF
-
-      - name: Generate Android app files
-        run: |
-          mkdir -p app/src/main/java/com/guzik/app
-          mkdir -p app/src/main/res/mipmap-mdpi
-          mkdir -p app/src/main/res/mipmap-hdpi
-          mkdir -p app/src/main/res/mipmap-xhdpi
-          mkdir -p app/src/main/res/mipmap-xxhdpi
-          mkdir -p app/src/main/res/mipmap-xxxhdpi
-          mkdir -p app/src/main/res/values
-          mkdir -p app/src/main/assets
-
-          cat > app/build.gradle << 'EOF'
-          plugins {
-              id 'com.android.application' version '8.2.0'
-              id 'com.google.gms.google-services' version '4.4.2'
-          }
-
+          cat > app/build.gradle <<'EOF'
+          plugins { id 'com.android.application'; id 'com.google.gms.google-services' }
           android {
-              namespace 'com.guzik.app'
-              compileSdk 34
-
-              defaultConfig {
-                  applicationId "com.guzik.app"
-                  minSdk 23
-                  targetSdk 34
-                  versionCode 4
-                  versionName "1.3"
-              }
-
-              buildTypes {
-                  release {
-                      minifyEnabled false
-                  }
-              }
+            namespace 'com.bible.app'
+            compileSdk 35
+            defaultConfig {
+              applicationId "com.bible.app"
+              minSdk 28
+              targetSdk 35
+              versionCode 1
+              versionName "1.0"
+              ndk { abiFilters 'armeabi-v7a', 'arm64-v8a' }
+            }
+            splits {
+              abi { enable true; reset(); include 'armeabi-v7a', 'arm64-v8a'; universalApk true }
+            }
+            buildTypes { release { minifyEnabled false; shrinkResources false } }
+            compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
           }
-
           dependencies {
-              implementation 'androidx.core:core:1.12.0'
-
-              implementation platform('com.google.firebase:firebase-bom:33.1.2')
-              implementation 'com.google.firebase:firebase-auth'
-              implementation 'com.google.android.gms:play-services-auth:21.2.0'
+            implementation 'androidx.appcompat:appcompat:1.7.0'
+            implementation 'androidx.activity:activity:1.9.3'
+            implementation 'com.google.android.material:material:1.12.0'
+            implementation 'androidx.webkit:webkit:1.12.0'
+            implementation platform('com.google.firebase:firebase-bom:33.7.0')
+            implementation 'com.google.firebase:firebase-auth'
+            implementation 'com.google.android.gms:play-services-auth:21.3.0'
           }
           EOF
-
-          cat > app/src/main/res/values/strings.xml << 'EOF'
-          <resources>
-              <string name="app_name">EW Study Bible</string>
-          </resources>
-          EOF
-
-          if [ -f icon.png ]; then
-            for folder in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
-              cp icon.png "app/src/main/res/$folder/ic_launcher.png"
-              cp icon.png "app/src/main/res/$folder/ic_launcher_round.png"
-            done
-          else
-            echo "ERROR: icon.png was not found in the repository root."
-            exit 1
-          fi
-
-          cat > app/src/main/AndroidManifest.xml << 'EOF'
-          <?xml version="1.0" encoding="utf-8"?>
+          cat > app/src/main/AndroidManifest.xml <<'EOF'
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-
-              <uses-permission android:name="android.permission.INTERNET" />
-              <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-              <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
-
-              <application
-                  android:allowBackup="true"
-                  android:hardwareAccelerated="true"
-                  android:label="@string/app_name"
-                  android:icon="@mipmap/ic_launcher"
-                  android:roundIcon="@mipmap/ic_launcher_round"
-                  android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
-
-                  <activity
-                      android:name="com.guzik.app.MainActivity"
-                      android:exported="true">
-
-                      <intent-filter>
-                          <action android:name="android.intent.action.MAIN" />
-                          <category android:name="android.intent.category.LAUNCHER" />
-                      </intent-filter>
-                  </activity>
-
-                  <receiver
-                      android:name="com.guzik.app.MainActivity$NotifReceiver"
-                      android:exported="true">
-
-                      <intent-filter>
-                          <action android:name="BIBLE_NOTIF" />
-                      </intent-filter>
-                  </receiver>
-              </application>
+            <uses-permission android:name="android.permission.INTERNET" />
+            <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+            <uses-feature android:name="android.hardware.touchscreen" android:required="true" />
+            <application android:allowBackup="true" android:label="Bible App" android:theme="@style/Theme.AppCompat.Light.NoActionBar" android:usesCleartextTraffic="true">
+              <activity android:name=".MainActivity" android:exported="true" android:configChanges="orientation|screenSize|keyboardHidden|screenLayout|uiMode|density|fontScale">
+                <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+              </activity>
+            </application>
           </manifest>
           EOF
-
-          cat > app/src/main/java/com/guzik/app/MainActivity.java << 'EOF'
-          package com.guzik.app;
-
-          import android.Manifest;
-          import android.app.Activity;
-          import android.app.AlarmManager;
-          import android.app.NotificationChannel;
-          import android.app.NotificationManager;
-          import android.app.PendingIntent;
-          import android.content.BroadcastReceiver;
-          import android.content.Context;
-          import android.content.Intent;
-          import android.content.pm.PackageManager;
-          import android.os.Build;
+          cat > app/src/main/java/com/bible/app/MainActivity.java <<'EOF'
+          package com.bible.app;
           import android.os.Bundle;
           import android.view.View;
-          import android.webkit.JavascriptInterface;
-          import android.webkit.WebChromeClient;
-          import android.webkit.WebSettings;
+          import android.view.ViewGroup;
           import android.webkit.WebView;
           import android.webkit.WebViewClient;
-          import androidx.annotation.NonNull;
-          import androidx.core.app.NotificationCompat;
+          import android.webkit.WebChromeClient;
+          import android.webkit.JavascriptInterface;
+          import android.webkit.WebSettings;
+          import androidx.activity.OnBackPressedCallback;
+          import androidx.activity.result.ActivityResultLauncher;
+          import androidx.activity.result.contract.ActivityResultContracts;
+          import androidx.appcompat.app.AppCompatActivity;
           import androidx.core.view.WindowCompat;
-          import androidx.core.view.WindowInsetsCompat;
-          import androidx.core.view.WindowInsetsControllerCompat;
-
+          import android.content.Intent;
           import com.google.android.gms.auth.api.signin.GoogleSignIn;
           import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
           import com.google.android.gms.auth.api.signin.GoogleSignInClient;
           import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
           import com.google.android.gms.common.api.ApiException;
-          import com.google.android.gms.tasks.OnCompleteListener;
           import com.google.android.gms.tasks.Task;
           import com.google.firebase.auth.AuthCredential;
-          import com.google.firebase.auth.AuthResult;
           import com.google.firebase.auth.FirebaseAuth;
           import com.google.firebase.auth.FirebaseUser;
           import com.google.firebase.auth.GoogleAuthProvider;
-
-          import java.io.BufferedReader;
-          import java.io.File;
-          import java.io.FileReader;
-          import java.io.FileWriter;
-          import java.util.Calendar;
-
-          public class MainActivity extends Activity {
-
-              private static final int RC_SIGN_IN = 9001;
-
-              private WebView webView;
-              private GoogleSignInClient googleSignInClient;
-              private FirebaseAuth firebaseAuth;
-
-              @Override
-              protected void onCreate(Bundle savedInstanceState) {
-                  super.onCreate(savedInstanceState);
-
-                  webView = new WebView(this);
+          public class MainActivity extends AppCompatActivity {
+            WebView webView;
+            GoogleSignInClient gsc;
+            FirebaseAuth auth;
+            View customView;
+            WebChromeClient.CustomViewCallback customCallback;
+            ActivityResultLauncher<Intent> signInLauncher;
+            protected void onCreate(Bundle b) {
+              super.onCreate(b);
+              WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
+              auth = FirebaseAuth.getInstance();
+              GoogleSignInOptions gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN).requestIdToken(getString(R.string.default_web_client_id)).requestEmail().build();
+              gsc = GoogleSignIn.getClient(this, gso);
+              signInLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
+                if (result.getData() == null) return;
+                try {
+                  Task<GoogleSignInAccount> t = GoogleSignIn.getSignedInAccountFromIntent(result.getData());
+                  GoogleSignInAccount a = t.getResult(ApiException.class);
+                  AuthCredential c = GoogleAuthProvider.getCredential(a.getIdToken(), null);
+                  auth.signInWithCredential(c).addOnCompleteListener(task -> { webView.evaluateJavascript("if(window.onAuthChanged) window.onAuthChanged()", null); });
+                } catch (Exception e) {}
+              });
+              webView = new WebView(this);
+              webView.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+              setContentView(webView);
+              WebSettings s = webView.getSettings();
+              s.setJavaScriptEnabled(true);
+              s.setDomStorageEnabled(true);
+              s.setDatabaseEnabled(true);
+              s.setAllowFileAccess(true);
+              s.setUseWideViewPort(true);
+              s.setLoadWithOverviewMode(true);
+              s.setMediaPlaybackRequiresUserGesture(false);
+              s.setMixedContentMode(WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE);
+              webView.addJavascriptInterface(new Bridge(), "AndroidAuth");
+              webView.setWebViewClient(new WebViewClient());
+              webView.setWebChromeClient(new WebChromeClient() {
+                @Override public void onShowCustomView(View view, CustomViewCallback cb) {
+                  if (customView != null) { cb.onCustomViewHidden(); return; }
+                  customView = view;
+                  customCallback = cb;
+                  setContentView(customView);
+                }
+                @Override public void onHideCustomView() {
+                  if (customView == null) return;
                   setContentView(webView);
-
-                  WebSettings settings = webView.getSettings();
-                  settings.setJavaScriptEnabled(true);
-                  settings.setAllowFileAccess(true);
-                  settings.setDomStorageEnabled(true);
-                  settings.setCacheMode(WebSettings.LOAD_DEFAULT);
-
-                  webView.setOverScrollMode(View.OVER_SCROLL_NEVER);
-                  webView.setWebChromeClient(new WebChromeClient());
-
-                  firebaseAuth = FirebaseAuth.getInstance();
-
-                  GoogleSignInOptions googleSignInOptions =
-                          new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-                                  .requestIdToken(getString(R.string.default_web_client_id))
-                                  .requestEmail()
-                                  .build();
-
-                  googleSignInClient = GoogleSignIn.getClient(this, googleSignInOptions);
-
-                  webView.addJavascriptInterface(new WebNotificationBridge(this), "AndroidNotif");
-                  webView.addJavascriptInterface(new WebAuthBridge(), "AndroidAuth");
-                  webView.addJavascriptInterface(new WebUiBridge(), "AndroidUI");
-
-                  webView.setWebViewClient(new WebViewClient());
-                  webView.loadUrl("file:///android_asset/app2.html");
-
-                  createNotificationChannel();
-
-                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                      if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
-                              != PackageManager.PERMISSION_GRANTED) {
-
-                          requestPermissions(
-                                  new String[]{Manifest.permission.POST_NOTIFICATIONS},
-                                  1001
-                          );
-                      }
-                  }
+                  customCallback.onCustomViewHidden();
+                  customView = null;
+                }
+              });
+              getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+                @Override public void handleOnBackPressed() {
+                  if (customView != null) { webView.getWebChromeClient().onHideCustomView(); return; }
+                  if (webView.canGoBack()) webView.goBack(); else setEnabled(false);
+                }
+              });
+              webView.loadUrl("file:///android_asset/app2.html");
+            }
+            public class Bridge {
+              @JavascriptInterface public void login() { signInLauncher.launch(gsc.getSignInIntent()); }
+              @JavascriptInterface public void logout() { gsc.signOut(); auth.signOut(); }
+              @JavascriptInterface public String getUser() {
+                if (auth.getCurrentUser() == null) return "";
+                FirebaseUser u = auth.getCurrentUser();
+                return u.getDisplayName() + "|" + u.getEmail() + "|" + String.valueOf(u.getPhotoUrl());
               }
-
-              @Override
-              protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-                  super.onActivityResult(requestCode, resultCode, data);
-
-                  if (requestCode != RC_SIGN_IN) {
-                      return;
-                  }
-
-                  Task<GoogleSignInAccount> task =
-                          GoogleSignIn.getSignedInAccountFromIntent(data);
-
-                  try {
-                      GoogleSignInAccount account = task.getResult(ApiException.class);
-
-                      if (account == null) {
-                          sendLoginError("Google returned no account.");
-                          return;
-                      }
-
-                      String idToken = account.getIdToken();
-
-                      if (idToken == null) {
-                          sendLoginError("Google did not return an ID token. Check Firebase SHA-1 and Web client ID.");
-                          return;
-                      }
-
-                      AuthCredential credential =
-                              GoogleAuthProvider.getCredential(idToken, null);
-
-                      firebaseAuth.signInWithCredential(credential)
-                              .addOnCompleteListener(this, new OnCompleteListener<AuthResult>() {
-                                  @Override
-                                  public void onComplete(@NonNull Task<AuthResult> task) {
-                                      if (task.isSuccessful()) {
-                                          FirebaseUser user = firebaseAuth.getCurrentUser();
-
-                                          if (user != null) {
-                                              String email = user.getEmail() == null
-                                                      ? ""
-                                                      : user.getEmail();
-
-                                              sendLoginSuccess(email, user.getUid());
-                                          } else {
-                                              sendLoginError("Firebase signed in, but no user was returned.");
-                                          }
-                                      } else {
-                                          Exception error = task.getException();
-                                          String message = error == null
-                                                  ? "Firebase sign-in failed."
-                                                  : error.getMessage();
-
-                                          sendLoginError(message);
-                                      }
-                                  }
-                              });
-
-                  } catch (ApiException error) {
-                      int code = error.getStatusCode();
-                      String message = "Google sign-in failed. Code: " + code;
-
-                      if (code == 7) {
-                          message = "Google sign-in network error. Check your internet connection.";
-                      } else if (code == 10) {
-                          message = "Google sign-in configuration error. Check Firebase SHA-1 and Web client ID.";
-                      } else if (code == 12501) {
-                          message = "Google sign-in was cancelled.";
-                      }
-
-                      sendLoginError(message);
-                  }
-              }
-
-              private void sendLoginSuccess(String email, String uid) {
-                  String safeEmail = makeJavaScriptSafe(email);
-                  String safeUid = makeJavaScriptSafe(uid);
-
-                  webView.post(new Runnable() {
-                      @Override
-                      public void run() {
-                          webView.evaluateJavascript(
-                                  "window.androidLoginSuccess = window.androidLoginSuccess || function(email, uid) {" +
-                                  "localStorage.setItem('userEmail', email);" +
-                                  "localStorage.setItem('userId', uid);" +
-                                  "localStorage.setItem('loggedIn', 'true');" +
-                                  "if (typeof syncToCloud === 'function') { syncToCloud(); }" +
-                                  "location.reload();" +
-                                  "};" +
-                                  "window.androidLoginSuccess('" + safeEmail + "', '" + safeUid + "');",
-                                  null
-                          );
-                      }
-                  });
-              }
-
-              private void sendLoginError(String message) {
-                  String safeMessage = makeJavaScriptSafe(message);
-
-                  webView.post(new Runnable() {
-                      @Override
-                      public void run() {
-                          webView.evaluateJavascript(
-                                  "window.androidLoginError = window.androidLoginError || function(message) {" +
-                                  "alert('Google sign-in failed: ' + message);" +
-                                  "};" +
-                                  "window.androidLoginError('" + safeMessage + "');",
-                                  null
-                          );
-                      }
-                  });
-              }
-
-              private String makeJavaScriptSafe(String value) {
-                  if (value == null) {
-                      return "";
-                  }
-
-                  return value
-                          .replace("\\", "\\\\")
-                          .replace("'", "\\'");
-              }
-
-              private void applySystemBars(String mode) {
-                  WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
-
-                  WindowInsetsControllerCompat controller =
-                          WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
-
-                  if (controller == null) {
-                      return;
-                  }
-
-                  if ("fullscreen".equals(mode)) {
-                      controller.hide(WindowInsetsCompat.Type.systemBars());
-                  } else {
-                      controller.hide(WindowInsetsCompat.Type.statusBars());
-                      controller.show(WindowInsetsCompat.Type.navigationBars());
-                  }
-
-                  controller.setSystemBarsBehavior(
-                          WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-                  );
-              }
-
-              private void createNotificationChannel() {
-                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                      NotificationChannel channel = new NotificationChannel(
-                              "BIBLE_CHANNEL",
-                              "Bible Notifications",
-                              NotificationManager.IMPORTANCE_DEFAULT
-                      );
-
-                      NotificationManager manager =
-                              getSystemService(NotificationManager.class);
-
-                      if (manager != null) {
-                          manager.createNotificationChannel(channel);
-                      }
-                  }
-              }
-
-              public class WebUiBridge {
-
-                  @JavascriptInterface
-                  public void setSystemBars(final String mode) {
-                      runOnUiThread(new Runnable() {
-                          @Override
-                          public void run() {
-                              applySystemBars(mode);
-                          }
-                      });
-                  }
-              }
-
-              public class WebAuthBridge {
-
-                  @JavascriptInterface
-                  public void login() {
-                      Intent signInIntent = googleSignInClient.getSignInIntent();
-                      startActivityForResult(signInIntent, RC_SIGN_IN);
-                  }
-              }
-
-              public class WebNotificationBridge {
-
-                  private final Context context;
-
-                  WebNotificationBridge(Context context) {
-                      this.context = context;
-                  }
-
-                  @JavascriptInterface
-                  public void saveDailyVerse(String verse) {
-                      try {
-                          File file = new File(context.getFilesDir(), "daily_verse.txt");
-
-                          FileWriter writer = new FileWriter(file, false);
-                          writer.write(verse == null ? "" : verse);
-                          writer.close();
-
-                      } catch (Exception error) {
-                          error.printStackTrace();
-                      }
-                  }
-
-                  @JavascriptInterface
-                  public void scheduleNotif(
-                          int id,
-                          int hour,
-                          int minute,
-                          String title,
-                          String message
-                  ) {
-                      Intent intent = new Intent(context, NotifReceiver.class);
-                      intent.setAction("BIBLE_NOTIF");
-                      intent.putExtra("id", id);
-                      intent.putExtra("title", title);
-                      intent.putExtra("message", message);
-
-                      PendingIntent pendingIntent = PendingIntent.getBroadcast(
-                              context,
-                              id,
-                              intent,
-                              PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
-                      );
-
-                      AlarmManager alarmManager =
-                              (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
-
-                      Calendar calendar = Calendar.getInstance();
-                      calendar.set(Calendar.HOUR_OF_DAY, hour);
-                      calendar.set(Calendar.MINUTE, minute);
-                      calendar.set(Calendar.SECOND, 0);
-                      calendar.set(Calendar.MILLISECOND, 0);
-
-                      if (calendar.before(Calendar.getInstance())) {
-                          calendar.add(Calendar.DATE, 1);
-                      }
-
-                      if (alarmManager != null) {
-                          boolean canUseExactAlarm = true;
-
-                          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                              canUseExactAlarm = alarmManager.canScheduleExactAlarms();
-                          }
-
-                          if (canUseExactAlarm) {
-                              alarmManager.setRepeating(
-                                      AlarmManager.RTC_WAKEUP,
-                                      calendar.getTimeInMillis(),
-                                      AlarmManager.INTERVAL_DAY,
-                                      pendingIntent
-                              );
-                          } else {
-                              alarmManager.setInexactRepeating(
-                                      AlarmManager.RTC_WAKEUP,
-                                      calendar.getTimeInMillis(),
-                                      AlarmManager.INTERVAL_DAY,
-                                      pendingIntent
-                              );
-                          }
-                      }
-                  }
-              }
-
-              public static class NotifReceiver extends BroadcastReceiver {
-
-                  @Override
-                  public void onReceive(Context context, Intent intent) {
-                      int id = intent.getIntExtra("id", 0);
-                      String title = intent.getStringExtra("title");
-                      String message = intent.getStringExtra("message");
-
-                      if (id == 1) {
-                          String savedVerse = readSavedDailyVerse(context);
-
-                          if (savedVerse != null && savedVerse.trim().length() > 0) {
-                              message = savedVerse;
-                              title = "Daily Verse - World English Bible";
-                          }
-                      }
-
-                      NotificationCompat.Builder builder =
-                              new NotificationCompat.Builder(context, "BIBLE_CHANNEL")
-                                      .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
-                                      .setContentTitle(title)
-                                      .setContentText(message)
-                                      .setStyle(new NotificationCompat.BigTextStyle()
-                                              .bigText(message))
-                                      .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-                                      .setAutoCancel(true);
-
-                      NotificationManager manager =
-                              (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
-
-                      if (manager != null) {
-                          manager.notify(id, builder.build());
-                      }
-                  }
-
-                  private String readSavedDailyVerse(Context context) {
-                      try {
-                          File file = new File(context.getFilesDir(), "daily_verse.txt");
-
-                          if (!file.exists()) {
-                              return null;
-                          }
-
-                          BufferedReader reader = new BufferedReader(new FileReader(file));
-                          StringBuilder builder = new StringBuilder();
-                          String line;
-
-                          while ((line = reader.readLine()) != null) {
-                              builder.append(line);
-                              builder.append("\n");
-                          }
-
-                          reader.close();
-
-                          return builder.toString().trim();
-
-                      } catch (Exception error) {
-                          return null;
-                      }
-                  }
-              }
+            }
           }
           EOF
-
-      - name: Create assets and copy HTML
+          cat > app/src/main/res/values/strings.xml <<'EOF'
+          <resources><string name="app_name">Bible App</string></resources>
+          EOF
+      - name: Build APK
         run: |
-          if [ ! -f app2.html ]; then
-            cat > app2.html << 'EOF'
-          <!DOCTYPE html>
-          <html>
-          <head>
-              <meta charset="utf-8">
-              <meta name="viewport" content="width=device-width, initial-scale=1">
-              <title>EW Study Bible</title>
-          </head>
-          <body>
-              <h1>EW Study Bible</h1>
-              <p>Welcome</p>
-          EOF
-          fi
-
-          cat > script_bridge.js << 'EOF'
-          <script>
-          function saveNotifTimes() {
-              var verseInput = document.getElementById('nt-verse-time');
-              var reminderInput = document.getElementById('nt-rem-time');
-
-              if (!verseInput || !reminderInput) {
-                  return;
-              }
-
-              var verseTime = verseInput.value.split(':');
-              var reminderTime = reminderInput.value.split(':');
-
-              if (verseTime.length !== 2 || reminderTime.length !== 2) {
-                  return;
-              }
-
-              if (window.AndroidNotif) {
-                  AndroidNotif.scheduleNotif(
-                      1,
-                      parseInt(verseTime[0], 10),
-                      parseInt(verseTime[1], 10),
-                      "Daily Verse - World English Bible",
-                      "Your Daily Verse is ready."
-                  );
-
-                  AndroidNotif.scheduleNotif(
-                      2,
-                      parseInt(reminderTime[0], 10),
-                      parseInt(reminderTime[1], 10),
-                      "Bible Reminder",
-                      "Time to read your Bible"
-                  );
-
-                  localStorage.setItem("dailyVerseTime", verseInput.value);
-                  localStorage.setItem("readBibleTime", reminderInput.value);
-              }
-          }
-
-          function updateDailyVerseNotification(verseText) {
-              if (!verseText || !window.AndroidNotif || !AndroidNotif.saveDailyVerse) {
-                  return;
-              }
-
-              AndroidNotif.saveDailyVerse(verseText);
-          }
-
-          function findDailyVerseText() {
-              var candidates = document.querySelectorAll(
-                  "[id*='verse'], [class*='verse'], [data-verse], .daily-verse, #daily-verse"
-              );
-
-              var best = "";
-              var bestLength = 0;
-
-              for (var i = 0; i < candidates.length; i++) {
-                  var text = (candidates[i].textContent || "").trim();
-
-                  if (
-                      text.length > bestLength &&
-                      text.length > 20 &&
-                      text.length < 1500 &&
-                      text.indexOf("function") === -1
-                  ) {
-                      best = text;
-                      bestLength = text.length;
-                  }
-              }
-
-              return best;
-          }
-
-          function watchDailyVerse() {
-              var lastVerse = "";
-
-              function checkVerse() {
-                  var verse = findDailyVerseText();
-
-                  if (verse && verse !== lastVerse) {
-                      lastVerse = verse;
-                      updateDailyVerseNotification(verse);
-                  }
-              }
-
-              checkVerse();
-
-              var observer = new MutationObserver(function() {
-                  setTimeout(checkVerse, 500);
-              });
-
-              observer.observe(document.body, {
-                  childList: true,
-                  subtree: true,
-                  characterData: true
-              });
-
-              setInterval(checkVerse, 5000);
-          }
-
-          function autoSaveNotificationTimes() {
-              var verseInput = document.getElementById('nt-verse-time');
-              var reminderInput = document.getElementById('nt-rem-time');
-
-              if (verseInput) {
-                  verseInput.addEventListener("change", saveNotifTimes);
-              }
-
-              if (reminderInput) {
-                  reminderInput.addEventListener("change", saveNotifTimes);
-              }
-
-              if (verseInput && verseInput.value) {
-                  saveNotifTimes();
-              }
-
-              if (reminderInput && reminderInput.value) {
-                  saveNotifTimes();
-              }
-          }
-
-          function hideNotificationSaveButtons() {
-              var buttons = document.querySelectorAll(
-                  "button, input[type='button'], input[type='submit']"
-              );
-
-              for (var i = 0; i < buttons.length; i++) {
-                  var text = (
-                      buttons[i].textContent ||
-                      buttons[i].value ||
-                      ""
-                  ).toLowerCase();
-
-                  if (
-                      text.indexOf("save") !== -1 &&
-                      (
-                          text.indexOf("notif") !== -1 ||
-                          text.indexOf("reminder") !== -1 ||
-                          text.indexOf("time") !== -1
-                      )
-                  ) {
-                      buttons[i].style.display = "none";
-                  }
-              }
-          }
-
-          function replaceReadBibleIcon() {
-              var walker = document.createTreeWalker(
-                  document.body,
-                  NodeFilter.SHOW_TEXT,
-                  null,
-                  false
-              );
-
-              var node;
-
-              while ((node = walker.nextNode())) {
-                  if (node.nodeValue && node.nodeValue.indexOf("📖") !== -1) {
-                      node.nodeValue = node.nodeValue.replace(/📖/g, "✍️");
-                  }
-              }
-          }
-
-          function improvePerformance() {
-              var images = document.querySelectorAll("img:not([loading])");
-
-              for (var i = 0; i < images.length; i++) {
-                  images[i].setAttribute("loading", "lazy");
-                  images[i].setAttribute("decoding", "async");
-              }
-          }
-
-          function googleLogin() {
-              if (window.AndroidAuth && AndroidAuth.login) {
-                  AndroidAuth.login();
-              } else {
-                  alert("Native Google sign-in is not available.");
-              }
-          }
-
-          window.androidLoginSuccess = function(email, uid) {
-              localStorage.setItem("userEmail", email);
-              localStorage.setItem("userId", uid);
-              localStorage.setItem("loggedIn", "true");
-
-              if (typeof restoreFromCloud === "function") {
-                  restoreFromCloud();
-              }
-
-              if (typeof syncToCloud === "function") {
-                  syncToCloud();
-              }
-
-              location.reload();
-          };
-
-          window.androidLoginError = function(message) {
-              alert("Google sign-in failed: " + message);
-          };
-
-          (function() {
-              function bindGoogleButton() {
-                  var items = document.querySelectorAll(
-                      "button, a, div[role='button'], span[role='button']"
-                  );
-
-                  for (var i = 0; i < items.length; i++) {
-                      var item = items[i];
-                      var text = (item.textContent || "").toLowerCase();
-
-                      if (
-                          text.indexOf("sign in with google") !== -1 ||
-                          text.indexOf("google sign in") !== -1
-                      ) {
-                          item.addEventListener("click", function(event) {
-                              event.preventDefault();
-                              event.stopPropagation();
-                              googleLogin();
-                          }, true);
-                      }
-                  }
-              }
-
-              if (document.readyState === "loading") {
-                  document.addEventListener("DOMContentLoaded", bindGoogleButton);
-              } else {
-                  bindGoogleButton();
-              }
-
-              setTimeout(bindGoogleButton, 1000);
-          })();
-
-          function updateAndroidSystemBars() {
-              if (!window.AndroidUI || !AndroidUI.setSystemBars) {
-                  return;
-              }
-
-              var fullscreen =
-                  document.fullscreenElement !== null ||
-                  document.body.classList.contains("fullscreen") ||
-                  document.body.classList.contains("full-screen") ||
-                  document.body.classList.contains("immersive");
-
-              AndroidUI.setSystemBars(
-                  fullscreen ? "fullscreen" : "normal"
-              );
-          }
-
-          function applyAppImprovements() {
-              autoSaveNotificationTimes();
-              hideNotificationSaveButtons();
-              replaceReadBibleIcon();
-              improvePerformance();
-              watchDailyVerse();
-              updateAndroidSystemBars();
-
-              document.addEventListener(
-                  "fullscreenchange",
-                  updateAndroidSystemBars
-              );
-
-              var bodyObserver = new MutationObserver(updateAndroidSystemBars);
-
-              bodyObserver.observe(document.body, {
-                  attributes: true,
-                  attributeFilter: ["class"]
-              });
-          }
-
-          if (document.readyState === "loading") {
-              document.addEventListener("DOMContentLoaded", applyAppImprovements);
-          } else {
-              applyAppImprovements();
-          }
-
-          setTimeout(applyAppImprovements, 1500);
-          </script>
-          </body>
-          </html>
-          EOF
-
-          sed -i 's|</body>||g' app2.html
-          sed -i 's|</html>||g' app2.html
-
-          cat app2.html script_bridge.js > app/src/main/assets/app2.html
-
-      - name: Generate Gradle wrapper
-        run: gradle wrapper --gradle-version 8.5
-
-      - name: Build debug APK
-        run: ./gradlew assembleDebug --stacktrace
-
-      - name: Show signing certificate fingerprints
-        run: ./gradlew :app:signingReport
-
-      - name: Upload APK artifact
+          chmod +x gradlew || true
+          if [ ! -f gradlew ]; then gradle wrapper --gradle-version 8.9; fi
+          ./gradlew assembleRelease --stacktrace
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: Bible-App-APK-arm-arm64
+          path: app/build/outputs/apk/release/*.apk
