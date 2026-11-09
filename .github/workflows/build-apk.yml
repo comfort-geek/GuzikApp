@@ -69,7 +69,7 @@ jobs:
           mkdir -p app/src/main/res/values
           mkdir -p app/src/main/assets
 
-                    cat > app/build.gradle << 'EOF'
+          cat > app/build.gradle << 'EOF'
           plugins {
               id 'com.android.application' version '8.2.0'
               id 'com.google.gms.google-services' version '4.4.2'
@@ -94,12 +94,12 @@ jobs:
               }
           }
 
-              dependencies {
-                    implementation 'androidx.core:core:1.12.0'
+          dependencies {
+              implementation 'androidx.core:core:1.12.0'
 
-                    implementation platform('com.google.firebase:firebase-bom:33.1.2')
-                    implementation 'com.google.firebase:firebase-auth'
-                    implementation 'com.google.android.gms:play-services-auth:21.2.0'
+              implementation platform('com.google.firebase:firebase-bom:33.1.2')
+              implementation 'com.google.firebase:firebase-auth'
+              implementation 'com.google.android.gms:play-services-auth:21.2.0'
           }
           EOF
 
@@ -157,9 +157,10 @@ jobs:
           </manifest>
           EOF
 
-                    cat > app/src/main/java/com/guzik/app/MainActivity.java << 'EOF'
+          cat > app/src/main/java/com/guzik/app/MainActivity.java << 'EOF'
           package com.guzik.app;
 
+          import android.Manifest;
           import android.app.Activity;
           import android.app.AlarmManager;
           import android.app.NotificationChannel;
@@ -168,22 +169,21 @@ jobs:
           import android.content.BroadcastReceiver;
           import android.content.Context;
           import android.content.Intent;
+          import android.content.pm.PackageManager;
           import android.os.Build;
           import android.os.Bundle;
+          import android.view.GestureDetector;
+          import android.view.MotionEvent;
           import android.view.View;
           import android.webkit.JavascriptInterface;
           import android.webkit.WebSettings;
           import android.webkit.WebView;
           import android.webkit.WebViewClient;
-import android.Manifest;
-import android.content.pm.PackageManager;
-import android.view.GestureDetector;
-import android.view.MotionEvent;
-import androidx.core.view.WindowCompat;
-import androidx.core.view.WindowInsetsCompat;
-import androidx.core.view.WindowInsetsControllerCompat;
           import androidx.annotation.NonNull;
           import androidx.core.app.NotificationCompat;
+          import androidx.core.view.WindowCompat;
+          import androidx.core.view.WindowInsetsCompat;
+          import androidx.core.view.WindowInsetsControllerCompat;
 
           import com.google.android.gms.auth.api.signin.GoogleSignIn;
           import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
@@ -205,8 +205,9 @@ import androidx.core.view.WindowInsetsControllerCompat;
               private static final int RC_SIGN_IN = 9001;
 
               private WebView webView;
-private GestureDetector gestureDetector;
-private boolean fullscreenEnabled = false;
+              private GestureDetector gestureDetector;
+              private boolean fullscreenEnabled = false;
+
               private GoogleSignInClient googleSignInClient;
               private FirebaseAuth firebaseAuth;
 
@@ -216,18 +217,19 @@ private boolean fullscreenEnabled = false;
 
                   webView = new WebView(this);
 
-gestureDetector = new GestureDetector(this, new GestureDetector.SimpleOnGestureListener() {
-    @Override
-    public boolean onDoubleTap(MotionEvent e) {
-        toggleFullscreen();
-        return true;
-    }
-});
+                  gestureDetector = new GestureDetector(this, new GestureDetector.SimpleOnGestureListener() {
+                      @Override
+                      public boolean onDoubleTap(MotionEvent e) {
+                          toggleFullscreen();
+                          return true;
+                      }
+                  });
 
-webView.setOnTouchListener((v, event) -> {
-    gestureDetector.onTouchEvent(event);
-    return false;
-});
+                  webView.setOnTouchListener((v, event) -> {
+                      gestureDetector.onTouchEvent(event);
+                      return false;
+                  });
+
                   setContentView(webView);
 
                   WebSettings settings = webView.getSettings();
@@ -253,21 +255,16 @@ webView.setOnTouchListener((v, event) -> {
 
                   createNotificationChannel();
 
-if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-    if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
-            != PackageManager.PERMISSION_GRANTED) {
+                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                      if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
+                              != PackageManager.PERMISSION_GRANTED) {
 
-        requestPermissions(
-                new String[]{Manifest.permission.POST_NOTIFICATIONS},
-                1001
-        );
-    }
-}
-              }
-
-              @Override
-              protected void onResume() {
-                  super.onResume();
+                          requestPermissions(
+                                  new String[]{Manifest.permission.POST_NOTIFICATIONS},
+                                  1001
+                          );
+                      }
+                  }
               }
 
               @Override
@@ -363,43 +360,41 @@ if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                           .replace("'", "\\'");
               }
 
-              
-private void hideSystemUI() {
-    WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
+              private void hideSystemUI() {
+                  WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
 
-    WindowInsetsControllerCompat controller =
-            WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
+                  WindowInsetsControllerCompat controller =
+                          WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
 
-    if (controller != null) {
-        controller.hide(WindowInsetsCompat.Type.systemBars());
-        controller.setSystemBarsBehavior(
-                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-        );
+                  if (controller != null) {
+                      controller.hide(WindowInsetsCompat.Type.systemBars());
+                      controller.setSystemBarsBehavior(
+                              WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                      );
 
-        fullscreenEnabled = true;
-    }
-}
+                      fullscreenEnabled = true;
+                  }
+              }
 
-private void showSystemUI() {
-    WindowCompat.setDecorFitsSystemWindows(getWindow(), true);
+              private void showSystemUI() {
+                  WindowCompat.setDecorFitsSystemWindows(getWindow(), true);
 
-    WindowInsetsControllerCompat controller =
-            WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
+                  WindowInsetsControllerCompat controller =
+                          WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
 
-    if (controller != null) {
-        controller.show(WindowInsetsCompat.Type.systemBars());
-    }
+                  if (controller != null) {
+                      controller.show(WindowInsetsCompat.Type.systemBars());
+                  }
 
-    fullscreenEnabled = false;
-}
+                  fullscreenEnabled = false;
+              }
 
-private void toggleFullscreen() {
-    if (fullscreenEnabled) {
-        showSystemUI();
-    } else {
-        hideSystemUI();
-    }
-}
+              private void toggleFullscreen() {
+                  if (fullscreenEnabled) {
+                      showSystemUI();
+                  } else {
+                      hideSystemUI();
+                  }
               }
 
               private void createNotificationChannel() {
@@ -470,34 +465,34 @@ private void toggleFullscreen() {
                       }
 
                       if (alarmManager != null) {
-    boolean canUseExactAlarm = true;
+                          boolean canUseExactAlarm = true;
 
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-        canUseExactAlarm = alarmManager.canScheduleExactAlarms();
-    }
+                          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                              canUseExactAlarm = alarmManager.canScheduleExactAlarms();
+                          }
 
-    if (canUseExactAlarm) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            alarmManager.setExactAndAllowWhileIdle(
-                    AlarmManager.RTC_WAKEUP,
-                    calendar.getTimeInMillis(),
-                    pendingIntent
-            );
-        } else {
-            alarmManager.setExact(
-                    AlarmManager.RTC_WAKEUP,
-                    calendar.getTimeInMillis(),
-                    pendingIntent
-            );
-        }
-    } else {
-        alarmManager.setAndAllowWhileIdle(
-                AlarmManager.RTC_WAKEUP,
-                calendar.getTimeInMillis(),
-                pendingIntent
-        );
-    }
-}
+                          if (canUseExactAlarm) {
+                              if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                                  alarmManager.setExactAndAllowWhileIdle(
+                                          AlarmManager.RTC_WAKEUP,
+                                          calendar.getTimeInMillis(),
+                                          pendingIntent
+                                  );
+                              } else {
+                                  alarmManager.setExact(
+                                          AlarmManager.RTC_WAKEUP,
+                                          calendar.getTimeInMillis(),
+                                          pendingIntent
+                                  );
+                              }
+                          } else {
+                              alarmManager.setAndAllowWhileIdle(
+                                      AlarmManager.RTC_WAKEUP,
+                                      calendar.getTimeInMillis(),
+                                      pendingIntent
+                              );
+                          }
+                      }
                   }
               }
 
@@ -571,64 +566,63 @@ private void toggleFullscreen() {
                   alert("Notifications are available in the installed APK.");
               }
           }
-          
-function googleLogin() {
-    if (window.AndroidAuth && AndroidAuth.login) {
-        AndroidAuth.login();
-    } else {
-        alert("Native Google sign-in is not available.");
-    }
-}
 
-window.androidLoginSuccess = function(email, uid) {
-    localStorage.setItem("userEmail", email);
-    localStorage.setItem("userId", uid);
-    localStorage.setItem("loggedIn", "true");
+          function googleLogin() {
+              if (window.AndroidAuth && AndroidAuth.login) {
+                  AndroidAuth.login();
+              } else {
+                  alert("Native Google sign-in is not available.");
+              }
+          }
 
-    if (typeof syncToCloud === "function") {
-        syncToCloud();
-    }
+          window.androidLoginSuccess = function(email, uid) {
+              localStorage.setItem("userEmail", email);
+              localStorage.setItem("userId", uid);
+              localStorage.setItem("loggedIn", "true");
 
-    location.reload();
-};
+              if (typeof syncToCloud === "function") {
+                  syncToCloud();
+              }
 
-window.androidLoginError = function(message) {
-    alert("Google sign-in failed: " + message);
-};
+              location.reload();
+          };
 
-(function() {
-    function bindGoogleButton() {
-        var items = document.querySelectorAll(
-            "button, a, div[role='button'], span[role='button']"
-        );
+          window.androidLoginError = function(message) {
+              alert("Google sign-in failed: " + message);
+          };
 
-        for (var i = 0; i < items.length; i++) {
-            var item = items[i];
-            var text = (item.textContent || "").toLowerCase();
+          (function() {
+              function bindGoogleButton() {
+                  var items = document.querySelectorAll(
+                      "button, a, div[role='button'], span[role='button']"
+                  );
 
-            if (
-                text.indexOf("sign in with google") !== -1 ||
-                text.indexOf("google sign in") !== -1
-            ) {
-                item.addEventListener("click", function(event) {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    googleLogin();
-                }, true);
-            }
-        }
-    }
+                  for (var i = 0; i < items.length; i++) {
+                      var item = items[i];
+                      var text = (item.textContent || "").toLowerCase();
 
-    if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", bindGoogleButton);
-    } else {
-        bindGoogleButton();
-    }
+                      if (
+                          text.indexOf("sign in with google") !== -1 ||
+                          text.indexOf("google sign in") !== -1
+                      ) {
+                          item.addEventListener("click", function(event) {
+                              event.preventDefault();
+                              event.stopPropagation();
+                              googleLogin();
+                          }, true);
+                      }
+                  }
+              }
 
-    setTimeout(bindGoogleButton, 1000);
-})();
+              if (document.readyState === "loading") {
+                  document.addEventListener("DOMContentLoaded", bindGoogleButton);
+              } else {
+                  bindGoogleButton();
+              }
 
-</script>
+              setTimeout(bindGoogleButton, 1000);
+          })();
+          </script>
           </body>
           </html>
           EOF
