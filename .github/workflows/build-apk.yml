@@ -1,190 +1,425 @@
-name: Build Bible App
+name: Build EW Bible App
+
 on:
   push:
     branches: [ main ]
   workflow_dispatch:
+
 jobs:
   build:
     runs-on: ubuntu-24.04
+
     steps:
-      - uses: actions/checkout@v5
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
       - name: Set up JDK 17
         uses: actions/setup-java@v5
         with:
           java-version: '17'
           distribution: 'temurin'
-      - name: Setup Android SDK
+
+      - name: Set up Android SDK
         run: |
-          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
-          echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> $GITHUB_ENV
-          echo "$ANDROID_HOME/cmdline-tools/latest/bin" >> $GITHUB_PATH
-          echo "$ANDROID_HOME/platform-tools" >> $GITHUB_PATH
+          echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> "$GITHUB_ENV"
+          echo "$ANDROID_HOME/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
+          echo "$ANDROID_HOME/platform-tools" >> "$GITHUB_PATH"
+
           yes | sdkmanager --licenses || true
           sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0" || true
           sdkmanager --list_installed || true
-      - name: Create Project
+
+      - name: Check required files
         run: |
-          mkdir -p app/src/main/java/com/bible/app app/src/main/assets app/src/main/res/values app/src/main/res/mipmap-hdpi app/src/main/res/mipmap-mdpi app/src/main/res/mipmap-xhdpi app/src/main/res/mipmap-xxhdpi app/src/main/res/mipmap-xxxhdpi
-          ls -la
-          if [ -f app2.html ]; then cp app2.html app/src/main/assets/app2.html; echo "Copied app2.html"; fi
-          if [ -f app/src/main/assets/app2.html ]; then echo "app2.html OK"; else echo "MISSING app2.html"; exit 1; fi
-          if [ -f google-services.json ]; then cp google-services.json app/google-services.json; echo "Copied google-services.json"; fi
-          if [ -f app/google-services.json ]; then echo "google-services.json OK"; else echo "WARNING google-services.json missing"; fi
+          if [ ! -f app2.html ]; then
+            echo "ERROR: app2.html is missing from the repository root."
+            exit 1
+          fi
+
+          if [ ! -f google-services.json ]; then
+            echo "ERROR: google-services.json is missing from the repository root."
+            echo "Download it from Firebase Project Settings and commit it, or restore it from a GitHub secret."
+            exit 1
+          fi
+
+      - name: Create Android project
+        run: |
+          cat > gradle.properties <<'EOF'
+          org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+          android.useAndroidX=true
+          android.nonTransitiveRClass=true
+          EOF
+
+          mkdir -p \
+            app/src/main/java/com/guzik/app \
+            app/src/main/assets \
+            app/src/main/res/values \
+            app/src/main/res/mipmap-mdpi \
+            app/src/main/res/mipmap-hdpi \
+            app/src/main/res/mipmap-xhdpi \
+            app/src/main/res/mipmap-xxhdpi \
+            app/src/main/res/mipmap-xxxhdpi
+
+          cp app2.html app/src/main/assets/app2.html
+          cp google-services.json app/google-services.json
+
           cat > settings.gradle <<'EOF'
-          pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
-          dependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS); repositories { google(); mavenCentral() } }
-          rootProject.name = "BibleApp"
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+
+          rootProject.name = "EW Bible App"
           include ':app'
           EOF
+
           cat > build.gradle <<'EOF'
-          plugins { id 'com.android.application' version '8.7.2' apply false; id 'com.google.gms.google-services' version '4.4.2' apply false }
+          plugins {
+              id 'com.android.application' version '8.7.2' apply false
+              id 'com.google.gms.google-services' version '4.4.2' apply false
+          }
           EOF
+
           cat > app/build.gradle <<'EOF'
-          plugins { id 'com.android.application'; id 'com.google.gms.google-services' }
-          android {
-            namespace 'com.bible.app'
-            compileSdk 35
-            defaultConfig {
-              applicationId "com.bible.app"
-              minSdk 28
-              targetSdk 35
-              versionCode 1
-              versionName "1.0"
-              ndk { abiFilters 'armeabi-v7a', 'arm64-v8a' }
-            }
-            splits {
-              abi { enable true; reset(); include 'armeabi-v7a', 'arm64-v8a'; universalApk true }
-            }
-            buildTypes { release { minifyEnabled false; shrinkResources false } }
-            compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+          plugins {
+              id 'com.android.application'
+              id 'com.google.gms.google-services'
           }
+
+          android {
+              namespace 'com.guzik.app'
+              compileSdk 35
+
+              defaultConfig {
+                  applicationId "com.guzik.app"
+                  minSdk 28
+                  targetSdk 35
+                  versionCode 1
+                  versionName "1.0"
+              }
+
+              buildTypes {
+                  release {
+                      minifyEnabled false
+                      shrinkResources false
+                  }
+              }
+
+              compileOptions {
+                  sourceCompatibility JavaVersion.VERSION_17
+                  targetCompatibility JavaVersion.VERSION_17
+              }
+          }
+
           dependencies {
-            implementation 'androidx.appcompat:appcompat:1.7.0'
-            implementation 'androidx.activity:activity:1.9.3'
-            implementation 'com.google.android.material:material:1.12.0'
-            implementation 'androidx.webkit:webkit:1.12.0'
-            implementation platform('com.google.firebase:firebase-bom:33.7.0')
-            implementation 'com.google.firebase:firebase-auth'
-            implementation 'com.google.android.gms:play-services-auth:21.3.0'
+              implementation 'androidx.appcompat:appcompat:1.7.0'
+              implementation 'androidx.activity:activity:1.9.3'
+              implementation 'com.google.android.material:material:1.12.0'
+              implementation 'androidx.webkit:webkit:1.12.0'
+
+              implementation platform('com.google.firebase:firebase-bom:33.7.0')
+              implementation 'com.google.firebase:firebase-auth'
+              implementation 'com.google.android.gms:play-services-auth:21.3.0'
           }
           EOF
+
           cat > app/src/main/AndroidManifest.xml <<'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-            <uses-permission android:name="android.permission.INTERNET" />
-            <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-            <uses-feature android:name="android.hardware.touchscreen" android:required="true" />
-            <application android:allowBackup="true" android:label="Bible App" android:theme="@style/Theme.AppCompat.Light.NoActionBar" android:usesCleartextTraffic="true">
-              <activity android:name=".MainActivity" android:exported="true" android:configChanges="orientation|screenSize|keyboardHidden|screenLayout|uiMode|density|fontScale">
-                <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
-              </activity>
-            </application>
+
+              <uses-permission android:name="android.permission.INTERNET" />
+              <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+              <uses-feature
+                  android:name="android.hardware.touchscreen"
+                  android:required="true" />
+
+              <application
+                  android:allowBackup="true"
+                  android:label="@string/app_name"
+                  android:theme="@style/Theme.AppCompat.Light.NoActionBar"
+                  android:usesCleartextTraffic="true">
+
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true"
+                      android:configChanges="orientation|screenSize|keyboardHidden|screenLayout|uiMode|density|fontScale">
+
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+              </application>
           </manifest>
           EOF
-          cat > app/src/main/java/com/bible/app/MainActivity.java <<'EOF'
-          package com.bible.app;
+
+          cat > app/src/main/java/com/guzik/app/MainActivity.java <<'EOF'
+          package com.guzik.app;
+
+          import android.content.Intent;
           import android.os.Bundle;
           import android.view.View;
           import android.view.ViewGroup;
+          import android.webkit.JavascriptInterface;
+          import android.webkit.WebChromeClient;
+          import android.webkit.WebSettings;
           import android.webkit.WebView;
           import android.webkit.WebViewClient;
-          import android.webkit.WebChromeClient;
-          import android.webkit.JavascriptInterface;
-          import android.webkit.WebSettings;
+
           import androidx.activity.OnBackPressedCallback;
           import androidx.activity.result.ActivityResultLauncher;
           import androidx.activity.result.contract.ActivityResultContracts;
           import androidx.appcompat.app.AppCompatActivity;
           import androidx.core.view.WindowCompat;
-          import android.content.Intent;
+
           import com.google.android.gms.auth.api.signin.GoogleSignIn;
           import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
           import com.google.android.gms.auth.api.signin.GoogleSignInClient;
           import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
           import com.google.android.gms.common.api.ApiException;
           import com.google.android.gms.tasks.Task;
+
           import com.google.firebase.auth.AuthCredential;
           import com.google.firebase.auth.FirebaseAuth;
           import com.google.firebase.auth.FirebaseUser;
           import com.google.firebase.auth.GoogleAuthProvider;
+
           public class MainActivity extends AppCompatActivity {
-            WebView webView;
-            GoogleSignInClient gsc;
-            FirebaseAuth auth;
-            View customView;
-            WebChromeClient.CustomViewCallback customCallback;
-            ActivityResultLauncher<Intent> signInLauncher;
-            protected void onCreate(Bundle b) {
-              super.onCreate(b);
-              WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
-              auth = FirebaseAuth.getInstance();
-              GoogleSignInOptions gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN).requestIdToken(getString(R.string.default_web_client_id)).requestEmail().build();
-              gsc = GoogleSignIn.getClient(this, gso);
-              signInLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
-                if (result.getData() == null) return;
-                try {
-                  Task<GoogleSignInAccount> t = GoogleSignIn.getSignedInAccountFromIntent(result.getData());
-                  GoogleSignInAccount a = t.getResult(ApiException.class);
-                  AuthCredential c = GoogleAuthProvider.getCredential(a.getIdToken(), null);
-                  auth.signInWithCredential(c).addOnCompleteListener(task -> { webView.evaluateJavascript("if(window.onAuthChanged) window.onAuthChanged()", null); });
-                } catch (Exception e) {}
-              });
-              webView = new WebView(this);
-              webView.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-              setContentView(webView);
-              WebSettings s = webView.getSettings();
-              s.setJavaScriptEnabled(true);
-              s.setDomStorageEnabled(true);
-              s.setDatabaseEnabled(true);
-              s.setAllowFileAccess(true);
-              s.setUseWideViewPort(true);
-              s.setLoadWithOverviewMode(true);
-              s.setMediaPlaybackRequiresUserGesture(false);
-              s.setMixedContentMode(WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE);
-              webView.addJavascriptInterface(new Bridge(), "AndroidAuth");
-              webView.setWebViewClient(new WebViewClient());
-              webView.setWebChromeClient(new WebChromeClient() {
-                @Override public void onShowCustomView(View view, CustomViewCallback cb) {
-                  if (customView != null) { cb.onCustomViewHidden(); return; }
-                  customView = view;
-                  customCallback = cb;
-                  setContentView(customView);
-                }
-                @Override public void onHideCustomView() {
-                  if (customView == null) return;
+
+              private WebView webView;
+              private GoogleSignInClient googleSignInClient;
+              private FirebaseAuth firebaseAuth;
+
+              private View customView;
+              private WebChromeClient.CustomViewCallback customViewCallback;
+
+              private ActivityResultLauncher<Intent> signInLauncher;
+
+              @Override
+              protected void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+
+                  WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
+
+                  firebaseAuth = FirebaseAuth.getInstance();
+
+                  GoogleSignInOptions googleSignInOptions =
+                          new GoogleSignInOptions.Builder(
+                                  GoogleSignInOptions.DEFAULT_SIGN_IN
+                          )
+                                  .requestIdToken(getString(R.string.default_web_client_id))
+                                  .requestEmail()
+                                  .build();
+
+                  googleSignInClient = GoogleSignIn.getClient(this, googleSignInOptions);
+
+                  signInLauncher = registerForActivityResult(
+                          new ActivityResultContracts.StartActivityForResult(),
+                          result -> {
+                              if (result.getData() == null) {
+                                  return;
+                              }
+
+                              try {
+                                  Task<GoogleSignInAccount> task =
+                                          GoogleSignIn.getSignedInAccountFromIntent(
+                                                  result.getData()
+                                          );
+
+                                  GoogleSignInAccount account =
+                                          task.getResult(ApiException.class);
+
+                                  if (account == null || account.getIdToken() == null) {
+                                      return;
+                                  }
+
+                                  AuthCredential credential =
+                                          GoogleAuthProvider.getCredential(
+                                                  account.getIdToken(),
+                                                  null
+                                          );
+
+                                  firebaseAuth.signInWithCredential(credential)
+                                          .addOnCompleteListener(task -> {
+                                              if (webView != null) {
+                                                  webView.evaluateJavascript(
+                                                          "if (window.onAuthChanged) { " +
+                                                                  "window.onAuthChanged(); " +
+                                                                  "}",
+                                                          null
+                                                  );
+                                              }
+                                          });
+
+                              } catch (Exception error) {
+                                  error.printStackTrace();
+                              }
+                          }
+                  );
+
+                  webView = new WebView(this);
+                  webView.setLayoutParams(
+                          new ViewGroup.LayoutParams(
+                                  ViewGroup.LayoutParams.MATCH_PARENT,
+                                  ViewGroup.LayoutParams.MATCH_PARENT
+                          )
+                  );
+
                   setContentView(webView);
-                  customCallback.onCustomViewHidden();
-                  customView = null;
-                }
-              });
-              getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
-                @Override public void handleOnBackPressed() {
-                  if (customView != null) { webView.getWebChromeClient().onHideCustomView(); return; }
-                  if (webView.canGoBack()) webView.goBack(); else setEnabled(false);
-                }
-              });
-              webView.loadUrl("file:///android_asset/app2.html");
-            }
-            public class Bridge {
-              @JavascriptInterface public void login() { signInLauncher.launch(gsc.getSignInIntent()); }
-              @JavascriptInterface public void logout() { gsc.signOut(); auth.signOut(); }
-              @JavascriptInterface public String getUser() {
-                if (auth.getCurrentUser() == null) return "";
-                FirebaseUser u = auth.getCurrentUser();
-                return u.getDisplayName() + "|" + u.getEmail() + "|" + String.valueOf(u.getPhotoUrl());
+
+                  WebSettings webSettings = webView.getSettings();
+                  webSettings.setJavaScriptEnabled(true);
+                  webSettings.setDomStorageEnabled(true);
+                  webSettings.setDatabaseEnabled(true);
+                  webSettings.setAllowFileAccess(true);
+                  webSettings.setUseWideViewPort(true);
+                  webSettings.setLoadWithOverviewMode(true);
+                  webSettings.setMediaPlaybackRequiresUserGesture(false);
+                  webSettings.setMixedContentMode(
+                          WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
+                  );
+
+                  webView.addJavascriptInterface(new Bridge(), "AndroidAuth");
+
+                  webView.setWebViewClient(new WebViewClient());
+
+                  webView.setWebChromeClient(new WebChromeClient() {
+                      @Override
+                      public void onShowCustomView(View view, CustomViewCallback callback) {
+                          if (customView != null) {
+                              callback.onCustomViewHidden();
+                              return;
+                          }
+
+                          customView = view;
+                          customViewCallback = callback;
+
+                          setContentView(customView);
+                      }
+
+                      @Override
+                      public void onHideCustomView() {
+                          if (customView == null) {
+                              return;
+                          }
+
+                          setContentView(webView);
+
+                          if (customViewCallback != null) {
+                              customViewCallback.onCustomViewHidden();
+                          }
+
+                          customView = null;
+                          customViewCallback = null;
+                      }
+                  });
+
+                  getOnBackPressedDispatcher().addCallback(
+                          this,
+                          new OnBackPressedCallback(true) {
+                              @Override
+                              public void handleOnBackPressed() {
+                                  if (customView != null) {
+                                      if (customViewCallback != null) {
+                                          customViewCallback.onCustomViewHidden();
+                                      }
+
+                                      customView = null;
+                                      customViewCallback = null;
+                                      setContentView(webView);
+                                      return;
+                                  }
+
+                                  if (webView.canGoBack()) {
+                                      webView.goBack();
+                                  } else {
+                                      setEnabled(false);
+                                  }
+                              }
+                          }
+                  );
+
+                  webView.loadUrl("file:///android_asset/app2.html");
               }
-            }
+
+              public class Bridge {
+
+                  @JavascriptInterface
+                  public void login() {
+                      Intent signInIntent =
+                              googleSignInClient.getSignInIntent();
+
+                      signInLauncher.launch(signInIntent);
+                  }
+
+                  @JavascriptInterface
+                  public void logout() {
+                      googleSignInClient.signOut();
+                      firebaseAuth.signOut();
+                  }
+
+                  @JavascriptInterface
+                  public String getUser() {
+                      FirebaseUser user = firebaseAuth.getCurrentUser();
+
+                      if (user == null) {
+                          return "";
+                      }
+
+                      String name = user.getDisplayName() == null
+                              ? ""
+                              : user.getDisplayName();
+
+                      String email = user.getEmail() == null
+                              ? ""
+                              : user.getEmail();
+
+                      String photo = user.getPhotoUrl() == null
+                              ? ""
+                              : user.getPhotoUrl().toString();
+
+                      return name + "|" + email + "|" + photo;
+                  }
+              }
           }
           EOF
+
           cat > app/src/main/res/values/strings.xml <<'EOF'
-          <resources><string name="app_name">Bible App</string></resources>
+          <resources>
+              <string name="app_name">EW Bible App</string>
+          </resources>
           EOF
-      - name: Build APK
+
+      - name: Generate Gradle wrapper
+        run: |
+          if [ ! -f gradlew ]; then
+            gradle wrapper --gradle-version 8.9
+          fi
+
+      - name: Build debug APK
         run: |
           chmod +x gradlew || true
-          if [ ! -f gradlew ]; then gradle wrapper --gradle-version 8.9; fi
-          ./gradlew assembleRelease --stacktrace
-      - name: Upload APK
+          ./gradlew assembleDebug --stacktrace
+
+      - name: Show signing certificate fingerprints
+        run: |
+          ./gradlew :app:signingReport
+
+      - name: Upload debug APK
         uses: actions/upload-artifact@v5
         with:
-          name: Bible-App-APK-arm-arm64
-          path: app/build/outputs/apk/release/*.apk
+          name: EW-Bible-App-APK-debug
+          path: app/build/outputs/apk/debug/*.apk
