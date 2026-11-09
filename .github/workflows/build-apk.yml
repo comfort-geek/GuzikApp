@@ -83,8 +83,8 @@ jobs:
                   applicationId "com.guzik.app"
                   minSdk 23
                   targetSdk 34
-                  versionCode 1
-                  versionName "1.0"
+                  versionCode 3
+                  versionName "1.2"
               }
 
               buildTypes {
@@ -198,6 +198,10 @@ jobs:
           import com.google.firebase.auth.FirebaseUser;
           import com.google.firebase.auth.GoogleAuthProvider;
 
+          import java.io.BufferedReader;
+          import java.io.File;
+          import java.io.FileReader;
+          import java.io.FileWriter;
           import java.util.Calendar;
 
           public class MainActivity extends Activity {
@@ -236,6 +240,9 @@ jobs:
                   settings.setJavaScriptEnabled(true);
                   settings.setAllowFileAccess(true);
                   settings.setDomStorageEnabled(true);
+                  settings.setCacheMode(WebSettings.LOAD_DEFAULT);
+
+                  webView.setOverScrollMode(View.OVER_SCROLL_NEVER);
 
                   firebaseAuth = FirebaseAuth.getInstance();
 
@@ -249,6 +256,7 @@ jobs:
 
                   webView.addJavascriptInterface(new WebNotificationBridge(this), "AndroidNotif");
                   webView.addJavascriptInterface(new WebAuthBridge(), "AndroidAuth");
+                  webView.addJavascriptInterface(new WebUiBridge(), "AndroidUI");
 
                   webView.setWebViewClient(new WebViewClient());
                   webView.loadUrl("file:///android_asset/app2.html");
@@ -280,10 +288,16 @@ jobs:
 
                   try {
                       GoogleSignInAccount account = task.getResult(ApiException.class);
+
+                      if (account == null) {
+                          sendLoginError("Google returned no account.");
+                          return;
+                      }
+
                       String idToken = account.getIdToken();
 
                       if (idToken == null) {
-                          sendLoginError("Google did not return an ID token.");
+                          sendLoginError("Google did not return an ID token. Check Firebase SHA-1 and Web client ID.");
                           return;
                       }
 
@@ -304,7 +318,7 @@ jobs:
 
                                               sendLoginSuccess(email, user.getUid());
                                           } else {
-                                              sendLoginError("Signed in, but no user was returned.");
+                                              sendLoginError("Firebase signed in, but no user was returned.");
                                           }
                                       } else {
                                           Exception error = task.getException();
@@ -316,8 +330,20 @@ jobs:
                                       }
                                   }
                               });
+
                   } catch (ApiException error) {
-                      sendLoginError("Google sign-in was cancelled or failed.");
+                      int code = error.getStatusCode();
+                      String message = "Google sign-in failed. Code: " + code;
+
+                      if (code == 7) {
+                          message = "Google sign-in network error. Check your internet connection.";
+                      } else if (code == 10) {
+                          message = "Google sign-in configuration error. Check Firebase SHA-1 and Web client ID.";
+                      } else if (code == 12501) {
+                          message = "Google sign-in was cancelled.";
+                      }
+
+                      sendLoginError(message);
                   }
               }
 
@@ -367,7 +393,7 @@ jobs:
                           WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
 
                   if (controller != null) {
-                      controller.hide(WindowInsetsCompat.Type.systemBars());
+                      controller.hide(WindowInsetsCompat.Type.statusBars());
                       controller.setSystemBarsBehavior(
                               WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
                       );
@@ -383,7 +409,7 @@ jobs:
                           WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
 
                   if (controller != null) {
-                      controller.show(WindowInsetsCompat.Type.systemBars());
+                      controller.show(WindowInsetsCompat.Type.statusBars());
                   }
 
                   fullscreenEnabled = false;
@@ -414,6 +440,23 @@ jobs:
                   }
               }
 
+              public class WebUiBridge {
+
+                  @JavascriptInterface
+                  public void setImmersive(final boolean enabled) {
+                      runOnUiThread(new Runnable() {
+                          @Override
+                          public void run() {
+                              if (enabled) {
+                                  hideSystemUI();
+                              } else {
+                                  showSystemUI();
+                              }
+                          }
+                      });
+                  }
+              }
+
               public class WebAuthBridge {
 
                   @JavascriptInterface
@@ -429,6 +472,20 @@ jobs:
 
                   WebNotificationBridge(Context context) {
                       this.context = context;
+                  }
+
+                  @JavascriptInterface
+                  public void saveDailyVerse(String verse) {
+                      try {
+                          File file = new File(context.getFilesDir(), "daily_verse.txt");
+
+                          FileWriter writer = new FileWriter(file, false);
+                          writer.write(verse == null ? "" : verse);
+                          writer.close();
+
+                      } catch (Exception error) {
+                          error.printStackTrace();
+                      }
                   }
 
                   @JavascriptInterface
@@ -459,6 +516,7 @@ jobs:
                       calendar.set(Calendar.HOUR_OF_DAY, hour);
                       calendar.set(Calendar.MINUTE, minute);
                       calendar.set(Calendar.SECOND, 0);
+                      calendar.set(Calendar.MILLISECOND, 0);
 
                       if (calendar.before(Calendar.getInstance())) {
                           calendar.add(Calendar.DATE, 1);
@@ -472,23 +530,17 @@ jobs:
                           }
 
                           if (canUseExactAlarm) {
-                              if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                                  alarmManager.setExactAndAllowWhileIdle(
-                                          AlarmManager.RTC_WAKEUP,
-                                          calendar.getTimeInMillis(),
-                                          pendingIntent
-                                  );
-                              } else {
-                                  alarmManager.setExact(
-                                          AlarmManager.RTC_WAKEUP,
-                                          calendar.getTimeInMillis(),
-                                          pendingIntent
-                                  );
-                              }
-                          } else {
-                              alarmManager.setAndAllowWhileIdle(
+                              alarmManager.setRepeating(
                                       AlarmManager.RTC_WAKEUP,
                                       calendar.getTimeInMillis(),
+                                      AlarmManager.INTERVAL_DAY,
+                                      pendingIntent
+                              );
+                          } else {
+                              alarmManager.setInexactRepeating(
+                                      AlarmManager.RTC_WAKEUP,
+                                      calendar.getTimeInMillis(),
+                                      AlarmManager.INTERVAL_DAY,
                                       pendingIntent
                               );
                           }
@@ -504,11 +556,22 @@ jobs:
                       String title = intent.getStringExtra("title");
                       String message = intent.getStringExtra("message");
 
+                      if (id == 1) {
+                          String savedVerse = readSavedDailyVerse(context);
+
+                          if (savedVerse != null && savedVerse.trim().length() > 0) {
+                              message = savedVerse;
+                              title = "Daily Verse - World English Bible";
+                          }
+                      }
+
                       NotificationCompat.Builder builder =
                               new NotificationCompat.Builder(context, "BIBLE_CHANNEL")
                                       .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
                                       .setContentTitle(title)
                                       .setContentText(message)
+                                      .setStyle(new NotificationCompat.BigTextStyle()
+                                              .bigText(message))
                                       .setPriority(NotificationCompat.PRIORITY_DEFAULT)
                                       .setAutoCancel(true);
 
@@ -517,6 +580,32 @@ jobs:
 
                       if (manager != null) {
                           manager.notify(id, builder.build());
+                      }
+                  }
+
+                  private String readSavedDailyVerse(Context context) {
+                      try {
+                          File file = new File(context.getFilesDir(), "daily_verse.txt");
+
+                          if (!file.exists()) {
+                              return null;
+                          }
+
+                          BufferedReader reader = new BufferedReader(new FileReader(file));
+                          StringBuilder builder = new StringBuilder();
+                          String line;
+
+                          while ((line = reader.readLine()) != null) {
+                              builder.append(line);
+                              builder.append("\n");
+                          }
+
+                          reader.close();
+
+                          return builder.toString().trim();
+
+                      } catch (Exception error) {
+                          return null;
                       }
                   }
               }
@@ -543,27 +632,171 @@ jobs:
           cat > script_bridge.js << 'EOF'
           <script>
           function saveNotifTimes() {
-              var verseTime = document.getElementById('nt-verse-time').value.split(':');
-              var reminderTime = document.getElementById('nt-rem-time').value.split(':');
+              var verseInput = document.getElementById('nt-verse-time');
+              var reminderInput = document.getElementById('nt-rem-time');
+
+              if (!verseInput || !reminderInput) {
+                  return;
+              }
+
+              var verseTime = verseInput.value.split(':');
+              var reminderTime = reminderInput.value.split(':');
+
+              if (verseTime.length !== 2 || reminderTime.length !== 2) {
+                  return;
+              }
 
               if (window.AndroidNotif) {
                   AndroidNotif.scheduleNotif(
                       1,
-                      parseInt(verseTime[0]),
-                      parseInt(verseTime[1]),
-                      "Daily Verse",
-                      "Open EW Study Bible for today's verse"
+                      parseInt(verseTime[0], 10),
+                      parseInt(verseTime[1], 10),
+                      "Daily Verse - World English Bible",
+                      "Your Daily Verse is ready."
                   );
 
                   AndroidNotif.scheduleNotif(
                       2,
-                      parseInt(reminderTime[0]),
-                      parseInt(reminderTime[1]),
+                      parseInt(reminderTime[0], 10),
+                      parseInt(reminderTime[1], 10),
                       "Bible Reminder",
                       "Time to read your Bible"
                   );
-              } else {
-                  alert("Notifications are available in the installed APK.");
+
+                  localStorage.setItem("dailyVerseTime", verseInput.value);
+                  localStorage.setItem("readBibleTime", reminderInput.value);
+              }
+          }
+
+          function updateDailyVerseNotification(verseText) {
+              if (!verseText || !window.AndroidNotif || !AndroidNotif.saveDailyVerse) {
+                  return;
+              }
+
+              AndroidNotif.saveDailyVerse(verseText);
+          }
+
+          function findDailyVerseText() {
+              var candidates = document.querySelectorAll(
+                  "[id*='verse'], [class*='verse'], [data-verse], .daily-verse, #daily-verse"
+              );
+
+              var best = "";
+              var bestLength = 0;
+
+              for (var i = 0; i < candidates.length; i++) {
+                  var text = (candidates[i].textContent || "").trim();
+
+                  if (
+                      text.length > bestLength &&
+                      text.length > 20 &&
+                      text.length < 1500 &&
+                      text.indexOf("function") === -1
+                  ) {
+                      best = text;
+                      bestLength = text.length;
+                  }
+              }
+
+              return best;
+          }
+
+          function watchDailyVerse() {
+              var lastVerse = "";
+
+              function checkVerse() {
+                  var verse = findDailyVerseText();
+
+                  if (verse && verse !== lastVerse) {
+                      lastVerse = verse;
+                      updateDailyVerseNotification(verse);
+                  }
+              }
+
+              checkVerse();
+
+              var observer = new MutationObserver(function() {
+                  setTimeout(checkVerse, 500);
+              });
+
+              observer.observe(document.body, {
+                  childList: true,
+                  subtree: true,
+                  characterData: true
+              });
+
+              setInterval(checkVerse, 5000);
+          }
+
+          function autoSaveNotificationTimes() {
+              var verseInput = document.getElementById('nt-verse-time');
+              var reminderInput = document.getElementById('nt-rem-time');
+
+              if (verseInput) {
+                  verseInput.addEventListener("change", saveNotifTimes);
+              }
+
+              if (reminderInput) {
+                  reminderInput.addEventListener("change", saveNotifTimes);
+              }
+
+              if (verseInput && verseInput.value) {
+                  saveNotifTimes();
+              }
+
+              if (reminderInput && reminderInput.value) {
+                  saveNotifTimes();
+              }
+          }
+
+          function hideNotificationSaveButtons() {
+              var buttons = document.querySelectorAll(
+                  "button, input[type='button'], input[type='submit']"
+              );
+
+              for (var i = 0; i < buttons.length; i++) {
+                  var text = (
+                      buttons[i].textContent ||
+                      buttons[i].value ||
+                      ""
+                  ).toLowerCase();
+
+                  if (
+                      text.indexOf("save") !== -1 &&
+                      (
+                          text.indexOf("notif") !== -1 ||
+                          text.indexOf("reminder") !== -1 ||
+                          text.indexOf("time") !== -1
+                      )
+                  ) {
+                      buttons[i].style.display = "none";
+                  }
+              }
+          }
+
+          function replaceReadBibleIcon() {
+              var walker = document.createTreeWalker(
+                  document.body,
+                  NodeFilter.SHOW_TEXT,
+                  null,
+                  false
+              );
+
+              var node;
+
+              while ((node = walker.nextNode())) {
+                  if (node.nodeValue && node.nodeValue.indexOf("📖") !== -1) {
+                      node.nodeValue = node.nodeValue.replace(/📖/g, "✍️");
+                  }
+              }
+          }
+
+          function improvePerformance() {
+              var images = document.querySelectorAll("img:not([loading])");
+
+              for (var i = 0; i < images.length; i++) {
+                  images[i].setAttribute("loading", "lazy");
+                  images[i].setAttribute("decoding", "async");
               }
           }
 
@@ -579,6 +812,10 @@ jobs:
               localStorage.setItem("userEmail", email);
               localStorage.setItem("userId", uid);
               localStorage.setItem("loggedIn", "true");
+
+              if (typeof restoreFromCloud === "function") {
+                  restoreFromCloud();
+              }
 
               if (typeof syncToCloud === "function") {
                   syncToCloud();
@@ -622,6 +859,28 @@ jobs:
 
               setTimeout(bindGoogleButton, 1000);
           })();
+
+          function applyAppImprovements() {
+              autoSaveNotificationTimes();
+              hideNotificationSaveButtons();
+              replaceReadBibleIcon();
+              improvePerformance();
+              watchDailyVerse();
+
+              if (window.AndroidUI && AndroidUI.setImmersive) {
+                  document.addEventListener("fullscreenchange", function() {
+                      AndroidUI.setImmersive(document.fullscreenElement !== null);
+                  });
+              }
+          }
+
+          if (document.readyState === "loading") {
+              document.addEventListener("DOMContentLoaded", applyAppImprovements);
+          } else {
+              applyAppImprovements();
+          }
+
+          setTimeout(applyAppImprovements, 1500);
           </script>
           </body>
           </html>
