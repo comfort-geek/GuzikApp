@@ -378,6 +378,9 @@ jobs:
       - name: Build debug APK
         run: ./gradlew assembleDebug --stacktrace
 
+      - name: Show signing certificate fingerprints
+        run: ./gradlew :app:signingReport
+
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
