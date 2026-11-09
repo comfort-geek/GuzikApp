@@ -157,7 +157,7 @@ jobs:
           </manifest>
           EOF
 
-          cat > app/src/main/java/com/guzik/app/MainActivity.java << 'EOF'
+                    cat > app/src/main/java/com/guzik/app/MainActivity.java << 'EOF'
           package com.guzik.app;
 
           import android.app.Activity;
@@ -175,12 +175,31 @@ jobs:
           import android.webkit.WebSettings;
           import android.webkit.WebView;
           import android.webkit.WebViewClient;
+          import androidx.annotation.NonNull;
           import androidx.core.app.NotificationCompat;
+
+          import com.google.android.gms.auth.api.signin.GoogleSignIn;
+          import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
+          import com.google.android.gms.auth.api.signin.GoogleSignInClient;
+          import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
+          import com.google.android.gms.common.api.ApiException;
+          import com.google.android.gms.tasks.OnCompleteListener;
+          import com.google.android.gms.tasks.Task;
+          import com.google.firebase.auth.AuthCredential;
+          import com.google.firebase.auth.AuthResult;
+          import com.google.firebase.auth.FirebaseAuth;
+          import com.google.firebase.auth.FirebaseUser;
+          import com.google.firebase.auth.GoogleAuthProvider;
+
           import java.util.Calendar;
 
           public class MainActivity extends Activity {
 
+              private static final int RC_SIGN_IN = 9001;
+
               private WebView webView;
+              private GoogleSignInClient googleSignInClient;
+              private FirebaseAuth firebaseAuth;
 
               @Override
               protected void onCreate(Bundle savedInstanceState) {
@@ -196,7 +215,19 @@ jobs:
                   settings.setAllowFileAccess(true);
                   settings.setDomStorageEnabled(true);
 
+                  firebaseAuth = FirebaseAuth.getInstance();
+
+                  GoogleSignInOptions googleSignInOptions =
+                          new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                                  .requestIdToken(getString(R.string.default_web_client_id))
+                                  .requestEmail()
+                                  .build();
+
+                  googleSignInClient = GoogleSignIn.getClient(this, googleSignInOptions);
+
                   webView.addJavascriptInterface(new WebNotificationBridge(this), "AndroidNotif");
+                  webView.addJavascriptInterface(new WebAuthBridge(), "AndroidAuth");
+
                   webView.setWebViewClient(new WebViewClient());
                   webView.loadUrl("file:///android_asset/app2.html");
 
@@ -207,6 +238,99 @@ jobs:
               protected void onResume() {
                   super.onResume();
                   hideSystemUI();
+              }
+
+              @Override
+              protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+                  super.onActivityResult(requestCode, resultCode, data);
+
+                  if (requestCode != RC_SIGN_IN) {
+                      return;
+                  }
+
+                  Task<GoogleSignInAccount> task =
+                          GoogleSignIn.getSignedInAccountFromIntent(data);
+
+                  try {
+                      GoogleSignInAccount account = task.getResult(ApiException.class);
+                      String idToken = account.getIdToken();
+
+                      if (idToken == null) {
+                          sendLoginError("Google did not return an ID token.");
+                          return;
+                      }
+
+                      AuthCredential credential =
+                              GoogleAuthProvider.getCredential(idToken, null);
+
+                      firebaseAuth.signInWithCredential(credential)
+                              .addOnCompleteListener(this, new OnCompleteListener<AuthResult>() {
+                                  @Override
+                                  public void onComplete(@NonNull Task<AuthResult> task) {
+                                      if (task.isSuccessful()) {
+                                          FirebaseUser user = firebaseAuth.getCurrentUser();
+
+                                          if (user != null) {
+                                              String email = user.getEmail() == null
+                                                      ? ""
+                                                      : user.getEmail();
+
+                                              sendLoginSuccess(email, user.getUid());
+                                          } else {
+                                              sendLoginError("Signed in, but no user was returned.");
+                                          }
+                                      } else {
+                                          Exception error = task.getException();
+                                          String message = error == null
+                                                  ? "Firebase sign-in failed."
+                                                  : error.getMessage();
+
+                                          sendLoginError(message);
+                                      }
+                                  }
+                              });
+                  } catch (ApiException error) {
+                      sendLoginError("Google sign-in was cancelled or failed.");
+                  }
+              }
+
+              private void sendLoginSuccess(String email, String uid) {
+                  String safeEmail = makeJavaScriptSafe(email);
+                  String safeUid = makeJavaScriptSafe(uid);
+
+                  webView.post(new Runnable() {
+                      @Override
+                      public void run() {
+                          webView.evaluateJavascript(
+                                  "window.androidLoginSuccess('" + safeEmail + "', '" + safeUid + "');",
+                                  null
+                          );
+                      }
+                  });
+              }
+
+              private void sendLoginError(String message) {
+                  String safeMessage = makeJavaScriptSafe(message);
+
+                  webView.post(new Runnable() {
+                      @Override
+                      public void run() {
+                          webView.evaluateJavascript(
+                                  "window.androidLoginError('" + safeMessage + "');",
+                                  null
+                          );
+                      }
+                  });
+              }
+
+              private String makeJavaScriptSafe(String value) {
+                  if (value == null) {
+                      return "";
+                  }
+
+                  return value
+                          .replace("\\", "\\\\")
+                          .replace("'", "\\'");
               }
 
               private void hideSystemUI() {
@@ -230,11 +354,21 @@ jobs:
                               NotificationManager.IMPORTANCE_DEFAULT
                       );
 
-                      NotificationManager manager = getSystemService(NotificationManager.class);
+                      NotificationManager manager =
+                              getSystemService(NotificationManager.class);
 
                       if (manager != null) {
                           manager.createNotificationChannel(channel);
                       }
+                  }
+              }
+
+              public class WebAuthBridge {
+
+                  @JavascriptInterface
+                  public void login() {
+                      Intent signInIntent = googleSignInClient.getSignInIntent();
+                      startActivityForResult(signInIntent, RC_SIGN_IN);
                   }
               }
 
