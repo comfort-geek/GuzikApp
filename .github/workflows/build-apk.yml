@@ -83,8 +83,8 @@ jobs:
                   applicationId "com.guzik.app"
                   minSdk 23
                   targetSdk 34
-                  versionCode 3
-                  versionName "1.2"
+                  versionCode 4
+                  versionName "1.3"
               }
 
               buildTypes {
@@ -115,7 +115,7 @@ jobs:
               cp icon.png "app/src/main/res/$folder/ic_launcher_round.png"
             done
           else
-            echo "Warning: icon.png not found. Using Android default icon is not possible without a launcher icon resource."
+            echo "ERROR: icon.png was not found in the repository root."
             exit 1
           fi
 
@@ -172,10 +172,9 @@ jobs:
           import android.content.pm.PackageManager;
           import android.os.Build;
           import android.os.Bundle;
-          import android.view.GestureDetector;
-          import android.view.MotionEvent;
           import android.view.View;
           import android.webkit.JavascriptInterface;
+          import android.webkit.WebChromeClient;
           import android.webkit.WebSettings;
           import android.webkit.WebView;
           import android.webkit.WebViewClient;
@@ -209,9 +208,6 @@ jobs:
               private static final int RC_SIGN_IN = 9001;
 
               private WebView webView;
-              private GestureDetector gestureDetector;
-              private boolean fullscreenEnabled = false;
-
               private GoogleSignInClient googleSignInClient;
               private FirebaseAuth firebaseAuth;
 
@@ -220,20 +216,6 @@ jobs:
                   super.onCreate(savedInstanceState);
 
                   webView = new WebView(this);
-
-                  gestureDetector = new GestureDetector(this, new GestureDetector.SimpleOnGestureListener() {
-                      @Override
-                      public boolean onDoubleTap(MotionEvent e) {
-                          toggleFullscreen();
-                          return true;
-                      }
-                  });
-
-                  webView.setOnTouchListener((v, event) -> {
-                      gestureDetector.onTouchEvent(event);
-                      return false;
-                  });
-
                   setContentView(webView);
 
                   WebSettings settings = webView.getSettings();
@@ -243,6 +225,7 @@ jobs:
                   settings.setCacheMode(WebSettings.LOAD_DEFAULT);
 
                   webView.setOverScrollMode(View.OVER_SCROLL_NEVER);
+                  webView.setWebChromeClient(new WebChromeClient());
 
                   firebaseAuth = FirebaseAuth.getInstance();
 
@@ -355,6 +338,13 @@ jobs:
                       @Override
                       public void run() {
                           webView.evaluateJavascript(
+                                  "window.androidLoginSuccess = window.androidLoginSuccess || function(email, uid) {" +
+                                  "localStorage.setItem('userEmail', email);" +
+                                  "localStorage.setItem('userId', uid);" +
+                                  "localStorage.setItem('loggedIn', 'true');" +
+                                  "if (typeof syncToCloud === 'function') { syncToCloud(); }" +
+                                  "location.reload();" +
+                                  "};" +
                                   "window.androidLoginSuccess('" + safeEmail + "', '" + safeUid + "');",
                                   null
                           );
@@ -369,6 +359,9 @@ jobs:
                       @Override
                       public void run() {
                           webView.evaluateJavascript(
+                                  "window.androidLoginError = window.androidLoginError || function(message) {" +
+                                  "alert('Google sign-in failed: ' + message);" +
+                                  "};" +
                                   "window.androidLoginError('" + safeMessage + "');",
                                   null
                           );
@@ -386,41 +379,26 @@ jobs:
                           .replace("'", "\\'");
               }
 
-              private void hideSystemUI() {
+              private void applySystemBars(String mode) {
                   WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
 
                   WindowInsetsControllerCompat controller =
                           WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
 
-                  if (controller != null) {
-                      controller.hide(WindowInsetsCompat.Type.statusBars());
-                      controller.setSystemBarsBehavior(
-                              WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-                      );
-
-                      fullscreenEnabled = true;
-                  }
-              }
-
-              private void showSystemUI() {
-                  WindowCompat.setDecorFitsSystemWindows(getWindow(), true);
-
-                  WindowInsetsControllerCompat controller =
-                          WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
-
-                  if (controller != null) {
-                      controller.show(WindowInsetsCompat.Type.statusBars());
+                  if (controller == null) {
+                      return;
                   }
 
-                  fullscreenEnabled = false;
-              }
-
-              private void toggleFullscreen() {
-                  if (fullscreenEnabled) {
-                      showSystemUI();
+                  if ("fullscreen".equals(mode)) {
+                      controller.hide(WindowInsetsCompat.Type.systemBars());
                   } else {
-                      hideSystemUI();
+                      controller.hide(WindowInsetsCompat.Type.statusBars());
+                      controller.show(WindowInsetsCompat.Type.navigationBars());
                   }
+
+                  controller.setSystemBarsBehavior(
+                          WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                  );
               }
 
               private void createNotificationChannel() {
@@ -443,15 +421,11 @@ jobs:
               public class WebUiBridge {
 
                   @JavascriptInterface
-                  public void setImmersive(final boolean enabled) {
+                  public void setSystemBars(final String mode) {
                       runOnUiThread(new Runnable() {
                           @Override
                           public void run() {
-                              if (enabled) {
-                                  hideSystemUI();
-                              } else {
-                                  showSystemUI();
-                              }
+                              applySystemBars(mode);
                           }
                       });
                   }
@@ -860,18 +834,41 @@ jobs:
               setTimeout(bindGoogleButton, 1000);
           })();
 
+          function updateAndroidSystemBars() {
+              if (!window.AndroidUI || !AndroidUI.setSystemBars) {
+                  return;
+              }
+
+              var fullscreen =
+                  document.fullscreenElement !== null ||
+                  document.body.classList.contains("fullscreen") ||
+                  document.body.classList.contains("full-screen") ||
+                  document.body.classList.contains("immersive");
+
+              AndroidUI.setSystemBars(
+                  fullscreen ? "fullscreen" : "normal"
+              );
+          }
+
           function applyAppImprovements() {
               autoSaveNotificationTimes();
               hideNotificationSaveButtons();
               replaceReadBibleIcon();
               improvePerformance();
               watchDailyVerse();
+              updateAndroidSystemBars();
 
-              if (window.AndroidUI && AndroidUI.setImmersive) {
-                  document.addEventListener("fullscreenchange", function() {
-                      AndroidUI.setImmersive(document.fullscreenElement !== null);
-                  });
-              }
+              document.addEventListener(
+                  "fullscreenchange",
+                  updateAndroidSystemBars
+              );
+
+              var bodyObserver = new MutationObserver(updateAndroidSystemBars);
+
+              bodyObserver.observe(document.body, {
+                  attributes: true,
+                  attributeFilter: ["class"]
+              });
           }
 
           if (document.readyState === "loading") {
