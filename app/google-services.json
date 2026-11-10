@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "515882116644",
+    "firebase_url": "https://guzikapp-6c7c6-default-rtdb.firebaseio.com",
+    "project_id": "guzikapp-6c7c6",
+    "storage_bucket": "guzikapp-6c7c6.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:515882116644:android:fe2f8a4614ffb5efe79ab1",
+        "android_client_info": {
+          "package_name": "com.guzik.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "515882116644-9fkvgq4elkg44tun8l1b3fh9dh5fqbuf.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.guzik.app",
+            "certificate_hash": "861bd072ae40aaf7ff4ad2c8178280aaec27d3c4"
+          }
+        },
+        {
+          "client_id": "515882116644-09lubulqpqbc1bl8177qrk4opedub2md.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC0MLfJymxgcpVDP58fu3btbweBvFegyTU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "515882116644-09lubulqpqbc1bl8177qrk4opedub2md.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
