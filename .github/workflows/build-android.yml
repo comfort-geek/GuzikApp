@@ -235,7 +235,6 @@ jobs:
           import com.google.firebase.auth.GoogleAuthProvider;
           import com.google.firebase.firestore.FirebaseFirestore;
 
-          import org.json.JSONObject;
           import java.util.Map;
 
           public class MainActivity extends AppCompatActivity {
@@ -378,16 +377,10 @@ jobs:
                 FirebaseUser u = auth.getCurrentUser();
                 if (u == null) { js("window.onSettingsSaved", false, "Sign in to sync."); return; }
 
-                try {
-                  JSONObject o = new JSONObject(json);
-
-                  db.collection("users").document(u.getUid())
-                    .set(Map.of("settings", o.toMap()))
-                    .addOnSuccessListener(r -> js("window.onSettingsSaved", true, "Settings synced."))
-                    .addOnFailureListener(e -> js("window.onSettingsSaved", false, "Sync failed."));
-                } catch (Exception e) {
-                  js("window.onSettingsSaved", false, "Invalid settings.");
-                }
+                db.collection("users").document(u.getUid())
+                  .set(Map.of("settings", json))
+                  .addOnSuccessListener(r -> js("window.onSettingsSaved", true, "Settings synced."))
+                  .addOnFailureListener(e -> js("window.onSettingsSaved", false, "Sync failed."));
               }
 
               @JavascriptInterface public void loadSettings() {
