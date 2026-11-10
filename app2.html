@@ -51,7 +51,8 @@ input#searchBox::placeholder{font-size:14px !important;font-weight:400 !importan
 
 #bmBtn{display:none!important;} #bmStableBtn{display:none!important;} #bmAddBtn{display:none!important;}
 
-/* Settings v1 - Dark Mode + Font slider + About page */
+/* Settings v1 - <div id="googleAuthSection" style="padding:12px;border-bottom:1px solid #ddd;"><div id="googleLoginBox"><button onclick="if(window.AndroidAuth){AndroidAuth.googleSignIn();}" style="width:100%;padding:12px;font-weight:bold;">Sign in with Google</button></div><div id="googleWelcomeBox" style="display:none;"><p style="margin:0 0 8px 0;font-weight:bold;">Welcome, <span id="googleUserEmail"></span></p><button onclick="if(window.AndroidAuth){AndroidAuth.googleSignOut();}" style="width:100%;padding:10px;">Log out</button></div></div>
+Dark Mode + Font slider + About page */
 .set-row{padding:6px 10px;border:1px solid var(--line,#ddd);border-radius:8px;margin-bottom:6px;background:var(--card,#fff)} .set-row .set-label{font-size:14px !important;margin-bottom:3px !important} .set-row .font-slider-row{padding:2px 0} .set-row #fontSizeLabel{font-size:12px !important;margin-top:2px !important}
 .set-label{font-weight:700;margin-bottom:6px}
 .toggle-wrap{display:flex;justify-content:space-between;align-items:center}
@@ -84,31 +85,13 @@ input#searchBox::placeholder{font-size:14px !important;font-weight:400 !importan
 .cat{font-size:14px !important;font-weight:500 !important;padding:9px 12px !important;}
 .cat.active{font-weight:600 !important;}
 
+</style><script src="https://accounts.google.com/gsi/client" async defer></script>
 </head><body>
 <div id="app"><header><button id="menuBtn">☰</button>
 <button class="tab active" data-tab="home">Home</button><button class="tab" data-tab="bible">Bible</button><button class="tab" data-tab="search">Search</button>
 <button id="dotsBtn">⋮</button></header>
 <div id="main"><aside id="leftPane" class="hidden"></aside><div id="content"></div></div></div>
 <div id="overlay"></div><aside id="drawer"><h2>Settings</h2>
-<button id="aboutBtn">About</button><div class="set-row"><div id="loginSyncSection" onclick="doLogin(event)" style="margin:10px 0; background:#f8f8f8; border:1px solid #eee; border-radius:16px; padding:14px; cursor:pointer;" onclick="if(!localStorage.getItem('ew_user_email')) loginWithGmail();">
-  <div id="loginLoggedOut"><b style="font-size:17px;">Login & Sync</b><p style="margin:4px 0 0 0; color:#666; font-size:13px;">Sign in to sync across devices</p><button id="loginBtn" onclick="doLogin(event)" style="margin:10px 0 0 0; width:100%; padding:12px; font-size:15px; font-weight:700; color:#fff; background:#0e7490; border:none; border-radius:12px; cursor:pointer;">Sign in with Google</button></div>
-  <div id="loginLoggedIn" style="display:none;"><b style="font-size:17px;">Login & Sync</b><p style="margin:4px 0 0 0; color:#16a34a; font-size:12px;">● Synced just now</p><div style="margin-top:10px;"><span id="userEmail" style="font-size:12px; color:#666;"></span><br><button onclick="logoutGmail(event)" style="margin:10px 0 0 0; width:100%; padding:12px; font-size:15px; font-weight:700; color:#fff; background:#0e7490; border:none; border-radius:12px; cursor:pointer;">Sign out</button></div></div>
-  
-  <hr style="margin:12px 0; border:none; border-top:1px solid #e5e5e5;">
-  <div><b style="font-size:17px;">🔔 Notifications</b>
-  <p style="margin:4px 0 0 0; color:#666; font-size:13px;">Daily verse & Bible reminder</p>
-  <label style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; font-size:14px;"><span>📖 Daily Verse time</span><input type="time" id="nt-verse-time" value="06:00" style="padding:6px; border-radius:8px; border:1px solid #ccc;"></label>
-  <label style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; font-size:14px;"><span>📖 Read Bible time</span><input type="time" id="nt-rem-time" value="20:00" style="padding:6px; border-radius:8px; border:1px solid #ccc;"></label>
-  <button onclick="saveNotifTimes(event)" style="margin:10px 0 0 0; width:100%; padding:12px; font-size:15px; font-weight:700; color:#fff; background:#0e7490; border:none; border-radius:12px; cursor:pointer;">Save Notification Times</button>
-  <p id="notifSavedMsg" style="display:none; color:#16a34a; font-size:13px; margin:6px 0 0 0;">✅ Saved - you will get notifications at those times</p>
-  </div>
-
-<label style="display:flex; justify-content:space-between; padding:6px 0; font-size:14px;"><span>📖 Sync Daily Verse</span><input type="checkbox" id="syncDailyVerse" checked onclick="event.stopPropagation()"></label>
-<label style="display:flex; justify-content:space-between; padding:6px 0; font-size:14px;"><span>🔤 Sync Font & Settings</span><input type="checkbox" id="syncFontSettings" checked onclick="event.stopPropagation()"></label>
-<label style="display:flex; justify-content:space-between; padding:6px 0; font-size:14px;"><span>✨ Sync AI Saved</span><input type="checkbox" id="syncAISaved" checked onclick="event.stopPropagation()"></label>
-    <label style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;cursor:pointer;">
-<label style="display:flex; justify-content:space-between; padding:6px 0; font-size:14px;"><span>✍️ Sync Reading Progress</span><input type="checkbox" id="syncReadingProgress" checked onclick="event.stopPropagation()"></label>
-</div>
 <div class="set-label">Dark Mode</div><div class="toggle-wrap"><span id="darkModeLabel" style="display:none">Off</span><button id="darkModeBtn" style="display:inline-block;width:auto;padding:2px 12px;border-radius:12px;border:1px solid #888;background:#fff;color:#111;font-size:14px;line-height:1.4;font-weight:700;cursor:pointer">Off</button></div>
 
 </div><div class="set-row"><div class="set-label">Font Size</div><div class="font-slider-row"><span style="font-size:14px;font-weight:700">A-</span><input id="fontSlider" type="range" min="14" max="28" step="1" value="18" oninput="setFontSize(this.value)"><span style="font-size:24px;font-weight:700">A+</span></div><div id="fontSizeLabel" style="text-align:center;font-size:13px;opacity:.7;margin-top:4px">18px</div></div><button id="aiSavedBtn">✨ AI Saved</button><button id="dailyVerseBtn" onclick="window.openDailyVersePage&&window.openDailyVersePage()">📖 Daily Verse</button><div id="drawerBody" style="margin-top:12px;line-height:1.6"></div><button id="closeDrawer">Close</button></aside>
@@ -1866,20 +1849,17 @@ document.addEventListener('DOMContentLoaded', function(){
     ["Psalms",19,1],["Psalms",91,1],["Luke",6,38],["Matthew",7,7],["Matthew",5,8]
   ];
   function findBible(){
+    // Try known var first
     try{ if(typeof BIBLE !== 'undefined' && BIBLE) return BIBLE; }catch(e){}
     try{ if(typeof bible !== 'undefined' && bible) return bible; }catch(e){}
     try{ if(typeof BIBLE_DATA !== 'undefined' && BIBLE_DATA) return BIBLE_DATA; }catch(e){}
-    try{ if(typeof window !== 'undefined' && window.BIBLE) return window.BIBLE; }catch(e){}
-    try{ if(typeof globalThis !== 'undefined' && globalThis.BIBLE) return globalThis.BIBLE; }catch(e){}
+    try{ if(typeof bibleData !== 'undefined' && bibleData) return bibleData; }catch(e){}
     try{ if(typeof window !== 'undefined'){
       for(var k in window){
         try{
           var v = window[k];
-          if(!v || typeof v !== 'object') continue;
-          var g = v.genesis || v.Genesis || v['genesis'];
-          if(g && typeof g === 'object' && g['1'] && typeof g['1'] === 'object' && g['1']['1']){
-            return v;
-          }
+          if(v && typeof v === 'object' && v.Genesis && typeof v.Genesis === 'object') return v;
+          if(v && typeof v === 'object' && v['Genesis'] && typeof v['Genesis'] === 'object') return v;
         }catch(e){}
       }
     }}catch(e){}
@@ -1889,8 +1869,6 @@ document.addEventListener('DOMContentLoaded', function(){
     var B = findBible();
     if(!B) return null;
     book = String(book).toLowerCase().trim().replace(/\s+/g,"-"); if(book==="psalm") book="psalms";
-    var bookVariants = [book, book.replace(/-/g," "), book.replace(/-/g,"")];
-    for(var vi=0; vi<bookVariants.length; vi++){ if(B[bookVariants[vi]]){ book=bookVariants[vi]; break; } }
     if(!B[book]){ for(var k in B){ if(String(k).toLowerCase()===book){ book=k; break; } } }
     try{
       // Shape 1: B["John"]["3"]["16"]
@@ -1916,10 +1894,7 @@ document.addEventListener('DOMContentLoaded', function(){
     return book + " " + ch + ":" + vs + " - WEB";
   }
   function showRef(idx){
-    var ALL = getFullRefs();
-    var total = ALL.length || REFS.length;
-    idx = ((idx % total) + total) % total;
-    var r = ALL.length ? ALL[idx] : REFS[idx % REFS.length];
+    var r = REFS[idx % REFS.length];
     var txt = getVerseText(r[0], r[1], r[2]);
     var txtEl = document.getElementById('dailyVerseText');
     var refEl = document.getElementById('dailyVerseRef');
@@ -1934,24 +1909,6 @@ document.addEventListener('DOMContentLoaded', function(){
     if(refEl) refEl.textContent = "— " + bookDisplay(r[0], r[1], r[2]);
     window.__dailyVerseIdx = idx;
     try{ localStorage.setItem('guzik_daily_idx', idx); }catch(e){}
-  }
-  // NEW: Build list of ALL verses from whole WEB BIBLE, not just 30
-  function getFullRefs(){
-    if(window.__fullRefs) return window.__fullRefs;
-    var B = findBible();
-    if(!B) return REFS;
-    var list = [];
-    for(var bk in B){
-      var chs = B[bk]; if(!chs) continue;
-      for(var ch in chs){
-        var vs = chs[ch]; if(!vs) continue;
-        for(var v in vs){
-          list.push([bk, parseInt(ch), parseInt(v)]);
-        }
-      }
-    }
-    window.__fullRefs = list;
-    return list;
   }
   function dayOfYear(){
     var now = new Date();
@@ -1992,7 +1949,6 @@ document.addEventListener('DOMContentLoaded', function(){
 
 
 <script>
-// FIX V5: Follow screenshot - Login & Sync at TOP of Settings, card itself is button
 function tryInsertLogin(){ return true; /* DISABLED V9 - static login now */ if(false){
   if(document.getElementById('loginSyncSection')) return true; if(document.querySelectorAll('#loginSyncSection').length>0) return true;
   // Find Settings panel: look for Dark Mode text
@@ -2014,21 +1970,14 @@ function tryInsertLogin(){ return true; /* DISABLED V9 - static login now */ if(
   };
   div.innerHTML = `
     <div id="loginLoggedOut">
-      <b style="font-size:17px;">Login & Sync</b>
-      <p style="margin:4px 0 0 0; color:#666; font-size:13px;">Sign in to sync across devices</p>
-      <button id="loginBtn" onclick="doLogin(event)" style="margin:10px 0 0 0; width:100%; padding:12px; font-size:15px; font-weight:700; color:#fff; background:#0e7490; border:none; border-radius:12px; cursor:pointer;">Sign in with Google</button>
+      <button id="loginBtn" onclick="doLogin(event)" style="margin:10px 0 0 0; width:100%; padding:12px; font-size:15px; font-weight:700; color:#fff; background:#0e7490; border:none; border-radius:12px; cursor:pointer;">Tap here to sign in →</button>
     </div>
     <div id="loginLoggedIn" style="display:none;">
-      <b style="font-size:17px;">Login & Sync</b>
       <p style="margin:4px 0 0 0; color:#16a34a; font-size:12px;">● Synced just now</p>
       <div style="margin-top:10px;"><span id="userEmail" style="font-size:12px; color:#666;"></span><br>
       <button onclick="logoutGmail(event)" style="margin:10px 0 0 0; width:100%; padding:12px; font-size:15px; font-weight:700; color:#fff; background:#0e7490; border:none; border-radius:12px; cursor:pointer;">Sign out</button></div>
     </div>
     <hr style="margin:12px 0; border:none; border-top:1px solid #e5e5e5;">
-<label style="display:flex; justify-content:space-between; padding:6px 0; font-size:14px;"><span>📖 Sync Daily Verse</span><input type="checkbox" id="syncDailyVerse" checked onclick="event.stopPropagation()"></label>
-<label style="display:flex; justify-content:space-between; padding:6px 0; font-size:14px;"><span>🔤 Sync Font & Settings</span><input type="checkbox" id="syncFontSettings" checked onclick="event.stopPropagation()"></label>
-<label style="display:flex; justify-content:space-between; padding:6px 0; font-size:14px;"><span>✨ Sync AI Saved</span><input type="checkbox" id="syncAISaved" checked onclick="event.stopPropagation()"></label>
-<label style="display:flex; justify-content:space-between; padding:6px 0; font-size:14px;"><span>\u270d\ufe0f Sync Reading Progress</span><input type="checkbox" id="syncReadingProgress" checked onclick="event.stopPropagation()"></label>
   `;
   if(firstCard && firstCard.parentElement === container){
     container.insertBefore(div, firstCard);
@@ -2061,6 +2010,16 @@ function handleGoogleCredential(resp){
     if(typeof updateLoginUI === 'function') updateLoginUI();
   }catch(e){ alert("Sign-in error: " + e.message); }
 }
+function loginWithGmail(){
+  try{
+    if(typeof google === 'undefined' || !google.accounts || !google.accounts.id){
+      alert("Google library not loaded. You must open this via http://localhost - not via Files app (content:// blocks Google). See Termux instructions.");
+      return;
+    }
+    google.accounts.id.initialize({ client_id: "1003593841959-2g6gue2osi7u8dj94i51pco08621djpt.apps.googleusercontent.com", callback: handleGoogleCredential, auto_select: false });
+    google.accounts.id.prompt(function(n){ if(n && n.isNotDisplayed && n.isNotDisplayed()){ alert("Google popup blocked: " + (n.getNotDisplayedReason ? n.getNotDisplayedReason() : "unknown") + " - Use localhost in Chrome"); } });
+  }catch(e){ alert("Google login error: " + e.message + " - This happens on content:// / file:// - use localhost"); }
+}
 function logoutGmail(){ localStorage.removeItem('ew_user_email'); localStorage.removeItem('ew_user_name'); updateLoginUI(); }
 function updateLoginUI(){
   let email = localStorage.getItem('ew_user_email');
@@ -2075,61 +2034,23 @@ new MutationObserver(()=>tryInsertLogin()).observe(document.body, {childList:tru
 </script>
 
 <script>
-window.androidLoginSuccess = function(email, uid){
+function doLogin(e){
+  if(e) e.stopPropagation();
+  try{
+    if(typeof loginWithGmail === 'function'){ loginWithGmail(); return; }
+  }catch(err){}
+  // Fallback: no Google function in this build, use email prompt
+  var email = prompt("Enter your Gmail to sync:");
+  if(!email) return;
+  email = email.trim();
+  if(!email.includes("@")){ alert("Please enter a valid email"); return; }
   try{
     localStorage.setItem('ew_user_email', email);
     localStorage.setItem('ew_user_name', email.split('@')[0]);
-    localStorage.setItem('ew_user_uid', uid || '');
   }catch(err){}
-  if(typeof updateLoginUI === 'function') updateLoginUI();
-  else {
-    var out = document.getElementById('loginLoggedOut');
-    var inn = document.getElementById('loginLoggedIn');
-    if(out) out.style.display='none';
-    if(inn) inn.style.display='block';
-    var em = document.getElementById('userEmail');
-    if(em) em.textContent = email;
-  }
   alert("Signed in as " + email);
-};
-window.androidLoginError = function(msg){
-  alert("Sign-in failed: " + msg);
-};
-
-
-function saveNotifTimes(e){
-  if(e) e.stopPropagation();
-  var v = document.getElementById('nt-verse-time');
-  var r = document.getElementById('nt-rem-time');
-  if(!v || !r){ alert("Time inputs not found"); return; }
-  var vt = v.value.split(':');
-  var rt = r.value.split(':');
-  try{
-    localStorage.setItem('nt_verse_time', v.value);
-    localStorage.setItem('nt_rem_time', r.value);
-  }catch(err){}
-  if(window.AndroidNotif && typeof AndroidNotif.scheduleNotif === 'function'){
-    AndroidNotif.scheduleNotif(1, parseInt(vt[0]), parseInt(vt[1]), "Daily Verse", "Open EW Study Bible for today's verse");
-    AndroidNotif.scheduleNotif(2, parseInt(rt[0]), parseInt(rt[1]), "Bible Reminder", "Time to read your Bible");
-    var m = document.getElementById('notifSavedMsg');
-    if(m) m.style.display='block';
-    alert("Notifications saved: Daily Verse " + v.value + ", Read Bible " + r.value);
-  } else {
-    alert("Notifications are available in the installed APK. Times saved: " + v.value + " / " + r.value);
-  }
+  updateLoginUI();
 }
-// Restore saved times on load
-(function(){
-  try{
-    var vt = localStorage.getItem('nt_verse_time');
-    var rt = localStorage.getItem('nt_rem_time');
-    var v = document.getElementById('nt-verse-time');
-    var r = document.getElementById('nt-rem-time');
-    if(vt && v) v.value = vt;
-    if(rt && r) r.value = rt;
-  }catch(e){}
-})();
-
 // On load, show logged-in state if we have email
 (function(){
   try{
@@ -2173,6 +2094,20 @@ function updateLoginUI(){
     }
   }catch(e){}
 }
+function doLogin(e){
+  if(e){ e.stopPropagation(); e.preventDefault(); }
+  try{ if(typeof loginWithGmail === 'function'){ loginWithGmail(); return; } }catch(err){}
+  var email = prompt("Enter your Gmail to sync:");
+  if(!email) return;
+  email = email.trim();
+  if(!email.includes("@")){ alert("Please enter a valid email"); return; }
+  try{
+    localStorage.setItem('ew_user_email', email);
+    localStorage.setItem('ew_user_name', email.split('@')[0]);
+  }catch(err){}
+  updateLoginUI();
+  // No reload, drawer stays open
+}
 function logoutGmail(e){
   if(e){ e.stopPropagation(); e.preventDefault(); }
   try{ localStorage.removeItem('ew_user_email'); localStorage.removeItem('ew_user_name'); }catch(e){}
@@ -2183,172 +2118,5 @@ function logoutGmail(e){
 document.addEventListener('DOMContentLoaded', updateLoginUI);
 updateLoginUI();
 </script>
-
-<!-- FIREBASE REPLACES OLD LOGIN START -->
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
-<script>
-const firebaseConfig = {
-  apiKey: "AIzaSyAreEw1Ds4HudNlpfIeLZ9QK4QrNxB-0Vk",
-  authDomain: "guzikapp-6c7c6.firebaseapp.com",
-  projectId: "guzikapp-6c7c6",
-  storageBucket: "guzikapp-6c7c6.firebasestorage.app",
-  messagingSenderId: "515882116644",
-  appId: "1:515882116644:web:e451e55b9f4f1d17e79ab1",
-  databaseURL: "https://guzikapp-6c7c6-default-rtdb.firebaseio.com"
-};
-firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth();
-const rdb = firebase.database();
-
-// --- REMOVE OLD BEHAVIOR: override old functions ---
-async function doLogin(e){
-  if(e){ e.preventDefault(); e.stopPropagation(); }
-
-  const u = auth.currentUser;
-  if(u){
-    await syncToCloud();
-    return;
-  }
-
-  if(window.AndroidAuth && typeof AndroidAuth.login === "function"){
-    AndroidAuth.login();
-    return;
-  }
-
-  alert("Google sign-in is not available in this app version.");
-}
-
-window.androidLoginSuccess = async function(email, uid){
-  try{
-    localStorage.setItem("ew_user_email", email);
-    localStorage.setItem("ew_user_name", email);
-
-    await syncToCloud();
-    location.reload();
-  }catch(err){
-    alert("Sign-in error: " + err.message);
-  }
-};
-
-window.androidLoginError = function(message){
-  alert("Sign-in error: " + (message || "Unknown error"));
-};
-
-async function loginWithGmail(){ return doLogin(); } // old name now = Firebase
-async function logoutGmail(e){
-  if(e){ e.preventDefault(); e.stopPropagation(); }
-  await auth.signOut();
-  location.reload();
-}
-function syncToCloud(){
-  const u = auth.currentUser;
-  if(!u){ alert("Please sign in first"); return; }
-  const data = {};
-  for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); data[k]=localStorage.getItem(k); }
-  return rdb.ref("users/"+u.uid).set({email:u.email, updated:Date.now(), data:data}).then(()=>alert("Saved to Cloud!"));
-}
-
-// --- Update the Settings card when auth changes ---
-auth.onAuthStateChanged((u)=>{
-  const outDiv = document.getElementById("loginLoggedOut");
-  const inDiv = document.getElementById("loginLoggedIn");
-  const btn = document.getElementById("loginBtn");
-  const emailSpan = document.getElementById("userEmail");
-  if(btn) btn.textContent = "Sign in with Google";
-  if(u){
-    if(outDiv) outDiv.style.display = "none";
-    if(inDiv) inDiv.style.display = "block";
-    if(emailSpan) emailSpan.textContent = u.email;
-    // Add Sync Now button inside logged-in card if not there
-    if(inDiv && !document.getElementById("firebase-sync-btn")){
-      const s = document.createElement("button");
-      s.id = "firebase-sync-btn";
-      s.textContent = "Sync Now to Cloud";
-      s.style.cssText = "margin:10px 0 0 0;width:100%;padding:12px;font-size:15px;font-weight:700;color:#fff;background:#16a34a;border:none;border-radius:12px;cursor:pointer;";
-      s.onclick = (e)=>{ e.preventDefault(); e.stopPropagation(); syncToCloud(); };
-      inDiv.appendChild(s);
-    }
-  } else {
-    if(outDiv) outDiv.style.display = "block";
-    if(inDiv) inDiv.style.display = "none";
-  }
-});
-</script>
-<!-- FIREBASE REPLACES OLD LOGIN END -->
-
-// --- Sync Reading Progress checkbox ---
-// --- Sync All 4 - REAL ---
-function shouldSyncDaily(){ const v=localStorage.getItem("guzik_sync_daily"); return v===null?true:v==="1"; }
-function shouldSyncFont(){ const v=localStorage.getItem("guzik_sync_font"); return v===null?true:v==="1"; }
-function shouldSyncAI(){ const v=localStorage.getItem("guzik_sync_ai"); return v===null?true:v==="1"; }
-function bindSyncCheckbox(id, key){
-  const el=document.getElementById(id);
-  if(!el) return;
-  const saved=localStorage.getItem(key);
-  if(saved!==null) el.checked = saved==="1";
-  el.addEventListener("change", ()=>{ localStorage.setItem(key, el.checked?"1":"0"); });
-}
-bindSyncCheckbox("syncDailyVerse","guzik_sync_daily");
-bindSyncCheckbox("syncFontSettings","guzik_sync_font");
-bindSyncCheckbox("syncAISaved","guzik_sync_ai");
-(function(){
-  var cb = document.getElementById('syncReadingProgress');
-  if(!cb) return;
-  var saved = localStorage.getItem('guzik_sync_reading');
-  if(saved !== null) cb.checked = (saved === '1');
-  cb.addEventListener('change', function(){
-    localStorage.setItem('guzik_sync_reading', cb.checked ? '1' : '0');
-  });
-  window.shouldSyncReading = function(){ return cb.checked; };
-})();
-
-
-<!-- LOCK: Left swipe should NOT close app -->
-<style>
-  html, body { overscroll-behavior: none; overscroll-behavior-x: none; }
-  body { touch-action: pan-y; }
-</style>
-<script>
-(function lockLeftSwipe(){
-  // A. Trap back-swipe: keep a dummy history entry so swipe-back stays in app
-  try{
-    history.pushState(null, "", location.href);
-    window.addEventListener('popstate', function(){
-      history.pushState(null, "", location.href);
-      // Do NOT close - stay on current page
-      // If you're on a sub-page, you can add: if(window.goHome) window.goHome();
-    });
-  }catch(e){}
-
-  // B. Block left-edge swipe gesture (starts within 30px of left edge)
-  var startX = 0, startY = 0, startT = 0;
-  document.addEventListener('touchstart', function(e){
-    if(e.touches.length === 1){
-      startX = e.touches[0].clientX;
-      startY = e.touches[0].clientY;
-      startT = Date.now();
-    }
-  }, {passive: true});
-
-  document.addEventListener('touchmove', function(e){
-    if(e.touches.length !== 1) return;
-    var dx = e.touches[0].clientX - startX;
-    var dy = e.touches[0].clientY - startY;
-    // Left-edge swipe: started at left edge + swiping right (Android back) OR swiping left to close
-    // Block only if it started at edge and is mostly horizontal
-    var startedAtLeftEdge = startX < 30;
-    var isHorizontal = Math.abs(dx) > Math.abs(dy) * 2 && Math.abs(dx) > 40;
-    if(startedAtLeftEdge && isHorizontal){
-      e.preventDefault(); // Stop browser from closing / going back
-      e.stopPropagation();
-    }
-  }, {passive: false});
-
-  // C. Also block mouse / trackpad swipe-back via wheel? No, keep wheel for scrolling
-  console.log("Left-swipe lock ON");
-})();
-</script>
-
+<script>window.onGoogleSignInResult=function(s,e){if(s){document.getElementById("googleLoginBox").style.display="none";document.getElementById("googleWelcomeBox").style.display="block";document.getElementById("googleUserEmail").textContent=e;}};window.onGoogleSignOut=function(){document.getElementById("googleWelcomeBox").style.display="none";document.getElementById("googleLoginBox").style.display="block";};</script>
 </body></html>
