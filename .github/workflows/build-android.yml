@@ -259,7 +259,11 @@ jobs:
               web = new WebView(this);
               web.setLayoutParams(new LinearLayout.LayoutParams(-1, -1));
               root.addView(web);
-              setContentView(root);
+              setContentView(root);              androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(web, (v, insets) -> {
+                androidx.core.view.WindowInsetsCompat bars = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars());
+                v.setPadding(0, bars.top, 0, bars.bottom);
+                return insets;
+              });
 
               cm = CredentialManager.create(this);
               auth = FirebaseAuth.getInstance();
