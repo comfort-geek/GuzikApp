@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.sp
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
         setContent {
             MaterialTheme {
                 GuzikApp()
@@ -27,51 +28,85 @@ class MainActivity : ComponentActivity() {
 fun GuzikApp() {
     var showBible by remember { mutableStateOf(false) }
     var statusText by remember { mutableStateOf("Guzik App - Not logged in") }
+
     val context = LocalContext.current
     val activity = context as MainActivity
 
     if (showBible) {
-        // Bible screen with Back button
-        Column(Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier.fillMaxSize()
+        ) {
             Button(
-                onClick = { showBible = false },
+                onClick = {
+                    showBible = false
+                },
                 modifier = Modifier.padding(16.dp)
-            ) { Text("← Back to Home") }
+            ) {
+                Text(text = "← Back to Home")
+            }
+
             BibleScreen()
         }
     } else {
-        // Home / Login screen
         Column(
-            Modifier.fillMaxSize().padding(24.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp),
             verticalArrangement = Arrangement.Center
         ) {
-            Text("Guzik App", fontSize = 32.sp)
-            Spacer(Modifier.height(8.dp))
-            Text(statusText, fontSize = 18.sp)
-            Spacer(Modifier.height(24.dp))
+            Text(
+                text = "Guzik App",
+                fontSize = 32.sp
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = statusText,
+                fontSize = 18.sp
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
 
             Button(
                 onClick = {
                     statusText = "Signing in..."
+
                     GoogleAuth.signIn(activity) { success, message ->
                         if (success) {
                             statusText = "Logged in as: $message"
-                            Toast.makeText(activity, "Welcome $message", Toast.LENGTH_SHORT).show()
+
+                            Toast.makeText(
+                                activity,
+                                "Welcome $message",
+                                Toast.LENGTH_SHORT
+                            ).show()
                         } else {
                             statusText = "Login failed: $message"
-                            Toast.makeText(activity, "Failed: $message", Toast.LENGTH_LONG).show()
+
+                            Toast.makeText(
+                                activity,
+                                "Failed: $message",
+                                Toast.LENGTH_LONG
+                            ).show()
                         }
                     }
                 },
                 modifier = Modifier.fillMaxWidth()
-            ) { Text("Sign in with Google") }
+            ) {
+                Text(text = "Sign in with Google")
+            }
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             Button(
-                onClick = { showBible = true },
+                onClick = {
+                    showBible = true
+                },
                 modifier = Modifier.fillMaxWidth()
-            ) { Text("📖 Open Bible") }
+            ) {
+                Text(text = "📖 Open Bible")
+            }
         }
     }
 }
