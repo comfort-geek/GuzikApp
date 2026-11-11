@@ -1,0 +1,29 @@
+BibleApp/
+├─ .github/
+│  └─ workflows/
+│     └─ android.yml
+├─ app/
+│  ├─ src/main/
+│  │  ├─ assets/
+│  │  │  └─ bible.db
+│  │  ├─ java/com/example/bibleapp/
+│  │  │  ├─ MainActivity.kt
+│  │  │  ├─ data/
+│  │  │  │  ├─ Verse.kt
+│  │  │  │  ├─ Bookmark.kt
+│  │  │  │  ├─ Note.kt
+│  │  │  │  ├─ BibleDao.kt
+│  │  │  │  ├─ BibleDatabase.kt
+│  │  │  │  └─ BibleRepository.kt
+│  │  │  ├─ ui/
+│  │  │  │  ├─ HomeScreen.kt
+│  │  │  │  ├─ ChapterScreen.kt
+│  │  │  │  ├─ ReaderScreen.kt
+│  │  │  │  └─ SettingsScreen.kt
+│  │  │  └─ viewmodel/
+│  │  │     └─ BibleViewModel.kt
+│  │  └─ res/
+│  ├─ build.gradle.kts
+├─ build.gradle.kts
+├─ settings.gradle.kts
+└─ README.md
