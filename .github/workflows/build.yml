@@ -18,10 +18,13 @@ jobs:
           distribution: temurin
           java-version: 17
 
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: 8.5
+
       - name: Build Debug APK
-        run: |
-          chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace
+        run: gradle assembleDebug --stacktrace
 
       - name: Upload ARM7 APK
         uses: actions/upload-artifact@v4
