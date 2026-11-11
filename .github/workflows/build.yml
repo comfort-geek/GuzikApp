@@ -2,12 +2,14 @@ name: Build EW Bible App - ARM7
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -21,7 +23,7 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v3
         with:
-          gradle-version: 8.5
+          gradle-version: 8.9
 
       - name: Build Debug APK
         run: gradle assembleDebug --stacktrace
@@ -31,3 +33,4 @@ jobs:
         with:
           name: EW-Bible-App-armeabi-v7a
           path: app/build/outputs/apk/debug/*armeabi-v7a*.apk
+          if-no-files-found: error
