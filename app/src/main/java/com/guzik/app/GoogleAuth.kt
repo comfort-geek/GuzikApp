@@ -15,12 +15,17 @@ import java.util.UUID
 
 object GoogleAuth {
 
-    // Your Web Client ID - client_type: 3 from google-services.json
-    private const val WEB_CLIENT_ID = "515882116644-09lubulqpqbc1bl8177qrk4opedub2md.apps.googleusercontent.com"
+    private const val WEB_CLIENT_ID =
+        "515882116644-09lubulqpqbc1bl8177qrk4opedub2md.apps.googleusercontent.com"
 
-    fun signIn(context: Context, onResult: (Boolean, String?) -> Unit) {
+    fun signIn(
+        context: Context,
+        onResult: (success: Boolean, message: String?) -> Unit
+    ) {
         val rawNonce = UUID.randomUUID().toString()
-        val nonce = MessageDigest.getInstance("SHA-256")
+
+        val nonce = MessageDigest
+            .getInstance("SHA-256")
             .digest(rawNonce.toByteArray())
             .joinToString("") { "%02x".format(it) }
 
@@ -38,15 +43,27 @@ object GoogleAuth {
 
         CoroutineScope(Dispatchers.Main).launch {
             try {
-                val result = credentialManager.getCredential(context, request)
-                val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(result.credential.data)
+                val result = credentialManager.getCredential(
+                    context = context,
+                    request = request
+                )
+
+                val googleIdTokenCredential =
+                    GoogleIdTokenCredential.createFrom(result.credential.data)
+
                 val googleIdToken = googleIdTokenCredential.idToken
 
-                val firebaseCredential = GoogleAuthProvider.getCredential(googleIdToken, null)
-                FirebaseAuth.getInstance().signInWithCredential(firebaseCredential)
+                val firebaseCredential =
+                    GoogleAuthProvider.getCredential(googleIdToken, null)
+
+                FirebaseAuth.getInstance()
+                    .signInWithCredential(firebaseCredential)
                     .addOnCompleteListener { task ->
                         if (task.isSuccessful) {
-                            onResult(true, FirebaseAuth.getInstance().currentUser?.email)
+                            val email = FirebaseAuth.getInstance()
+                                .currentUser?.email
+
+                            onResult(true, email)
                         } else {
                             onResult(false, task.exception?.message)
                         }
